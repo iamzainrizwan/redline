@@ -77,12 +77,19 @@ export default class extends Extension {
         // a notification, so the clock's notification dot (and the centring
         // pad GNOME pairs with it) would be showing
         Main.notify('rice-bar-test', 'notification dot check');
-        await pause(16000);
+        await pause(14000);
+        // a headless shell doesn't always focus a new window; make sure the
+        // title segment has something to show
+        const overviewAtStart = Main.overview.visible;
+        Main.overview.hide();
+        global.get_window_actors().map(a => a.meta_window)
+            .find(w => !w.skip_taskbar)?.activate(global.get_current_time());
+        await pause(2000);
         const bar = Main.panel.statusArea;
         const clockBox = bar.dateMenu._clockDisplay.get_parent();
         GLib.file_set_contents(OUT + '/probe.txt', [
             ...layout(),
-            'focus: ' + global.display.focus_window?.get_title(),
+            'focus: ' + global.display.focus_window?.get_title() + \` (overview was \${overviewAtStart ? 'open' : 'closed'}, now \${Main.overview.visible ? 'open' : 'closed'})\`,
             'title label: ' + bar['rice-title']?._label.text,
             'workspaces: ' + bar['rice-workspaces']?._box.get_children().map(b => b.get_style_class_name()).join(' / '),
             'clock box: ' + clockBox.get_children().map(c => \`\${c.constructor.name}\${c.visible ? '' : '(hidden)'}\`).join(' | '),

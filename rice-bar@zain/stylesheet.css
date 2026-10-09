@@ -72,6 +72,9 @@
   color: #000000;
   font-weight: bold;
   -natural-hpadding: 10px;
+  /* the red block's padding is inside it; this is the gap after it, so the
+   * next segment sits as far away as segments do from each other */
+  margin-right: 8px;
 }
 
 #panel .panel-button.rice-host:hover {
