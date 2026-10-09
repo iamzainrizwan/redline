@@ -37,9 +37,20 @@ export default class RiceBarExtension extends Extension {
         Main.panel.statusArea.activities.container.hide();
 
         // clock: centre → far right, after quick settings, like tmux's %H:%M
-        const clock = Main.panel.statusArea.dateMenu.container;
+        const dateMenu = Main.panel.statusArea.dateMenu;
+        const clock = dateMenu.container;
         clock.get_parent().remove_child(clock);
         Main.panel._rightBox.add_child(clock);
+
+        // GNOME keeps the centred clock centred with an invisible pad on its
+        // left, as wide as the notification dot on its right (and shown
+        // whenever the dot is). At the right edge it's just a dead, hoverable
+        // gap. Its visibility is bound to the dot, so detach it instead.
+        const clockBox = dateMenu._clockDisplay.get_parent();
+        this._clockPad = clockBox.get_children().find(c =>
+            c !== dateMenu._clockDisplay && c !== dateMenu._indicator) ?? null;
+        if (this._clockPad)
+            clockBox.remove_child(this._clockPad);
 
         // The battery segment replaces quick settings' battery icon. That
         // indicator is built asynchronously at startup, so it may not exist
@@ -53,9 +64,14 @@ export default class RiceBarExtension extends Extension {
 
         Main.panel.statusArea.activities.container.show();
 
-        const clock = Main.panel.statusArea.dateMenu.container;
+        const dateMenu = Main.panel.statusArea.dateMenu;
+        const clock = dateMenu.container;
         clock.get_parent()?.remove_child(clock);
         Main.panel._centerBox.insert_child_at_index(clock, 0);
+        if (this._clockPad) {
+            dateMenu._clockDisplay.get_parent().insert_child_at_index(this._clockPad, 0);
+            this._clockPad = null;
+        }
 
         if (this._batteryRetry) {
             GLib.source_remove(this._batteryRetry);

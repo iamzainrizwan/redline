@@ -55,6 +55,8 @@ function layout() {
         'center: ' + describe(Main.panel._centerBox),
         'right:  ' + describe(Main.panel._rightBox),
         'battery icon visible: ' + qs._system?._indicator.visible,
+        'clock box: ' + Main.panel.statusArea.dateMenu._clockDisplay.get_parent()
+            .get_children().map(c => c.constructor.name).join(' | '),
     ];
 }
 
@@ -70,13 +72,18 @@ export default class extends Extension {
     disable() {}
 
     async _run() {
+        // a notification, so the clock's notification dot (and the centring
+        // pad GNOME pairs with it) would be showing
+        Main.notify('rice-bar-test', 'notification dot check');
         await pause(16000);
         const bar = Main.panel.statusArea;
+        const clockBox = bar.dateMenu._clockDisplay.get_parent();
         GLib.file_set_contents(OUT + '/probe.txt', [
             ...layout(),
             'focus: ' + global.display.focus_window?.get_title(),
             'title label: ' + bar['rice-title']?._label.text,
             'workspaces: ' + bar['rice-workspaces']?._box.get_children().map(b => b.get_style_class_name()).join(' / '),
+            'clock box: ' + clockBox.get_children().map(c => \`\${c.constructor.name}\${c.visible ? '' : '(hidden)'}\`).join(' | '),
         ].join('\n') + '\n');
 
         const hover = GLib.getenv('RICE_BAR_TEST_HOVER');
