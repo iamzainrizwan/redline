@@ -91,6 +91,20 @@ export default class extends Extension {
             stream.close(null);
         }
 
+        // switching to the spare empty workspace should reveal the switcher
+        const wsSegment = bar['rice-workspaces'];
+        const wsLine = () => \`workspaces visible=\${wsSegment.visible}: \` +
+            wsSegment._box.get_children().map(b => \`\${b.label}[\${b.get_style_class_name()}]\`).join(' ');
+        const wsBefore = wsLine();
+        global.workspace_manager.get_workspace_by_index(global.workspace_manager.n_workspaces - 1)
+            .activate(global.get_current_time());
+        await pause(1500);
+        const wsAfter = wsLine();
+        global.workspace_manager.get_workspace_by_index(0).activate(global.get_current_time());
+        await pause(1500);
+        GLib.file_set_contents(OUT + '/workspaces.txt',
+            ['on workspace 1:    ' + wsBefore, 'on the empty last: ' + wsAfter, 'back on 1:         ' + wsLine()].join('\\n') + '\\n');
+
         const em = Main.extensionManager;
         await em.disableExtension('rice-bar@zain');
         await pause(2000);
@@ -182,6 +196,6 @@ if [[ $(gsettings get org.gnome.shell enabled-extensions) != "$before" ]]; then
 fi
 
 grep -h ABORT "$T/out/session.log" >&2 || true
-cat "$T/out/probe.txt" "$T/out/cycle.txt" "$T/out/error.txt" 2>/dev/null || true
+cat "$T/out/probe.txt" "$T/out/workspaces.txt" "$T/out/cycle.txt" "$T/out/error.txt" 2>/dev/null || true
 grep -E 'JS ERROR|rice-bar' "$T/out/shell.log" || true
 echo "output: $T/out"

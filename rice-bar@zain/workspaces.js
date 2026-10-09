@@ -1,7 +1,8 @@
 // 1 [2] 3 — workspaces like tmux windows: the current one is a red block,
 // ones with windows are bright, empty ones dim. Click to switch, scroll to
 // step through them. GNOME's dynamic workspaces always keep one empty
-// workspace at the end; it's hidden unless you're on it.
+// workspace at the end; it's hidden unless you're on it, and with only one
+// workspace left to show the whole segment hides.
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
@@ -63,7 +64,10 @@ class Workspaces extends PanelMenu.Button {
                 this);
             this._watched.push(ws);
 
-            const occupied = ws.list_windows().some(w => !w.skip_taskbar);
+            // windows on every workspace (desktop icons, overlays, PiP) are
+            // in every workspace's list; they don't make one "used"
+            const occupied = ws.list_windows()
+                .some(w => !w.skip_taskbar && !w.is_on_all_workspaces());
             if (i === n - 1 && n > 1 && !occupied && i !== active)
                 continue;
 
@@ -79,6 +83,7 @@ class Workspaces extends PanelMenu.Button {
             button.connect('clicked', () => ws.activate(global.get_current_time()));
             this._box.add_child(button);
         }
+        this.visible = this._box.get_n_children() > 1;
     }
 
     _onScroll(event) {
