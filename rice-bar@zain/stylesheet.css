@@ -1,0 +1,126 @@
+/* rice bar — palette.md, modelled on tmux.conf's status line:
+ * bg on the panel, red blocks for the session (host) and current window
+ * (workspace), comment-grey for the rest, fg for values. */
+
+#panel {
+  font-family: "BlexMono Nerd Font", monospace;
+  font-weight: normal;
+  height: 1.9em;
+}
+
+/* square, flat buttons: Yaru's are pills with a 3px border */
+#panel .panel-button,
+#panel .panel-button.clock-display {
+  border: 0;
+  border-radius: 0;
+  font-weight: normal;
+  color: #e0e0e0;
+  box-shadow: none;
+  -natural-hpadding: 8px;
+  -minimum-hpadding: 4px;
+}
+
+#panel .panel-button:hover,
+#panel .panel-button:focus,
+#panel .panel-button.clock-display:hover {
+  box-shadow: none;
+  background-color: #1a1a1a;
+}
+
+#panel .panel-button:active,
+#panel .panel-button:checked,
+#panel .panel-button.clock-display:active,
+#panel .panel-button.clock-display:checked {
+  box-shadow: none;
+  background-color: #222222;
+}
+
+/* yaru draws the clock as a second pill inside the button */
+#panel .panel-button.clock-display .clock-display-box,
+#panel .panel-button.clock-display:hover .clock-display-box,
+#panel .panel-button.clock-display:active .clock-display-box,
+#panel .panel-button.clock-display:checked .clock-display-box {
+  box-shadow: none;
+  background-color: transparent;
+  border-radius: 0;
+}
+
+#panel .clock {
+  color: #cc2222;
+  font-weight: bold;
+}
+
+/* [valhalla] */
+#panel .panel-button.rice-host {
+  background-color: #cc2222;
+  color: #000000;
+  font-weight: bold;
+  -natural-hpadding: 10px;
+}
+
+#panel .panel-button.rice-host:hover {
+  background-color: #e03333;
+}
+
+/* 1 [2] 3 */
+#panel .panel-button.rice-workspaces,
+#panel .panel-button.rice-workspaces:hover {
+  background-color: transparent;
+  -natural-hpadding: 4px;
+}
+
+.rice-ws {
+  color: #444444;
+  padding: 0 7px;
+  border-radius: 0;
+}
+
+.rice-ws.occupied {
+  color: #e0e0e0;
+}
+
+.rice-ws:hover {
+  background-color: #1a1a1a;
+}
+
+.rice-ws.active,
+.rice-ws.active:hover {
+  background-color: #cc2222;
+  color: #000000;
+  font-weight: bold;
+}
+
+/* focused window */
+#panel .panel-button.rice-title {
+  color: #666666;
+}
+
+/* now playing */
+.rice-np-icon {
+  color: #cc2222;
+  padding-right: 8px;
+}
+
+#panel .panel-button.rice-nowplaying.paused,
+#panel .panel-button.rice-nowplaying.paused .rice-np-icon {
+  color: #444444;
+}
+
+/* cpu 12  mem 41  bat 87% 3:12 */
+.rice-pairs {
+  spacing: 6px;
+}
+
+.rice-key {
+  color: #666666;
+}
+
+.rice-val {
+  color: #e0e0e0;
+  padding-right: 6px;
+}
+
+.rice-val.hot {
+  color: #ff4444;
+  font-weight: bold;
+}

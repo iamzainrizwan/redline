@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+# Test the rice bar extension in a throwaway headless GNOME Shell, without
+# touching the live session or logging out:
+#
+#   rice-bar-test            → prints the output dir: probe.txt, cycle.txt,
+#                              panel.png, screen.png, shell.log
+#
+# The test shell gets its own session bus and its own XDG config/data/cache
+# dirs, so its dconf writes land in a scratch database. That isolation only
+# holds if the XDG vars are set BEFORE dbus-run-session starts (dconf-service
+# inherits the bus daemon's environment, not ours) — set them later and the
+# test's gsettings calls overwrite the real settings. Two guards check this.
+#
+# It loads the user theme + rice bar + a probe extension that, after the
+# bar settles, records the panel layout, screenshots it, then disables and
+# re-enables the bar (what the lock screen does) and records that too. A
+# fake MPRIS player and a GTK3 window give the now-playing and title
+# segments something to show.
+set -euo pipefail
+
+RICE="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+EXT="$RICE/gnome/.local/share/gnome-shell/extensions/rice-bar@zain"
+T="$(mktemp -d "${TMPDIR:-/tmp}/rice-bar-test.XXXXXX")"
+mkdir -p "$T"/{config,cache,out,data/gnome-shell/extensions/rice-probe@zain}
+ln -s "$EXT" "$T/data/gnome-shell/extensions/rice-bar@zain"
+
+cat > "$T/data/gnome-shell/extensions/rice-probe@zain/metadata.json" <<'EOF'
+{"uuid": "rice-probe@zain", "name": "rice bar test probe", "description": "test only", "shell-version": ["46"]}
+EOF
+cat > "$T/data/gnome-shell/extensions/rice-probe@zain/extension.js" <<EOF
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import Shell from 'gi://Shell';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+
+Gio._promisify(Shell.Screenshot.prototype, 'screenshot_area');
+const OUT = '$T/out';
+const pause = ms => new Promise(r => GLib.timeout_add(0, ms, () => { r(); return GLib.SOURCE_REMOVE; }));
+
+function describe(box) {
+    return box.get_children().map(c => {
+        const role = Object.keys(Main.panel.statusArea).find(r => Main.panel.statusArea[r]?.container === c);
+        return \`\${role ?? c.constructor.name}\${c.visible ? '' : '(hidden)'}\`;
+    }).join(' | ');
+}
+
+function layout() {
+    const qs = Main.panel.statusArea.quickSettings;
+    return [
+        'left:   ' + describe(Main.panel._leftBox),
+        'center: ' + describe(Main.panel._centerBox),
+        'right:  ' + describe(Main.panel._rightBox),
+        'battery icon visible: ' + qs._system?._indicator.visible,
+    ];
+}
+
+export default class extends Extension {
+    enable() {
+        this._run().catch(e => {
+            logError(e, 'rice-probe');
+            GLib.file_set_contents(OUT + '/error.txt', String(e) + '\n' + e.stack);
+            GLib.file_set_contents(OUT + '/done', 'error');
+        });
+    }
+
+    disable() {}
+
+    async _run() {
+        await pause(16000);
+        const bar = Main.panel.statusArea;
+        GLib.file_set_contents(OUT + '/probe.txt', [
+            ...layout(),
+            'focus: ' + global.display.focus_window?.get_title(),
+            'title label: ' + bar['rice-title']?._label.text,
+            'workspaces: ' + bar['rice-workspaces']?._box.get_children().map(b => b.get_style_class_name()).join(' / '),
+        ].join('\n') + '\n');
+
+        const w = global.stage.width;
+        for (const [name, h] of [['panel', Main.panel.height + 8], ['screen', global.stage.height]]) {
+            const stream = Gio.File.new_for_path(\`\${OUT}/\${name}.png\`)
+                .replace(null, false, Gio.FileCreateFlags.NONE, null);
+            await new Shell.Screenshot().screenshot_area(0, 0, w, h, stream);
+            stream.close(null);
+        }
+
+        const em = Main.extensionManager;
+        await em.disableExtension('rice-bar@zain');
+        await pause(2000);
+        const disabled = layout();
+        await em.enableExtension('rice-bar@zain');
+        await pause(2000);
+        GLib.file_set_contents(OUT + '/cycle.txt', [
+            '--- after disable', ...disabled,
+            '--- after re-enable', ...layout(),
+            'state: ' + em.lookup('rice-bar@zain')?.state + ' (1 = enabled)',
+        ].join('\n') + '\n');
+        GLib.file_set_contents(OUT + '/done', 'ok');
+    }
+}
+EOF
+
+cat > "$T/fake-player.py" <<'EOF'
+from gi.repository import Gio, GLib
+XML = '''<node><interface name="org.mpris.MediaPlayer2.Player">
+<property name="PlaybackStatus" type="s" access="read"/>
+<property name="Metadata" type="a{sv}" access="read"/>
+<method name="PlayPause"/><method name="Next"/><method name="Previous"/>
+</interface></node>'''
+def get_prop(conn, sender, path, iface, prop):
+    if prop == 'PlaybackStatus':
+        return GLib.Variant('s', 'Playing')
+    return GLib.Variant('a{sv}', {'xesam:title': GLib.Variant('s', 'Windowlicker'),
+                                  'xesam:artist': GLib.Variant('as', ['Aphex Twin'])})
+def on_bus(conn, name):
+    conn.register_object('/org/mpris/MediaPlayer2', Gio.DBusNodeInfo.new_for_xml(XML).interfaces[0],
+                         lambda *a: a[-1].return_value(None), get_prop, None)
+Gio.bus_own_name(Gio.BusType.SESSION, 'org.mpris.MediaPlayer2.fakeplayer', 0, on_bus, None, None)
+GLib.MainLoop().run()
+EOF
+
+cat > "$T/window.py" <<'EOF'
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
+w = Gtk.Window(title='~/rice — nvim')
+w.set_default_size(800, 500)
+w.show_all()
+Gtk.main()
+EOF
+
+cat > "$T/inner.sh" <<EOF
+#!/usr/bin/env bash
+# guard 1: the bus daemon (our parent) must carry the scratch config dir
+tr '\0' '\n' < /proc/\$PPID/environ | grep -qx 'XDG_CONFIG_HOME=$T/config' ||
+  { echo "ABORT: bus not isolated" >&2; exit 1; }
+# guard 2: a dconf write must land in the scratch database
+dconf write /org/rice/isolation-probe true
+[[ -f $T/config/dconf/user ]] ||
+  { dconf reset /org/rice/isolation-probe; echo "ABORT: dconf not isolated" >&2; exit 1; }
+
+gsettings set org.gnome.shell enabled-extensions \
+  "['user-theme@gnome-shell-extensions.gcampax.github.com', 'rice-bar@zain', 'rice-probe@zain']"
+gsettings set org.gnome.shell disable-user-extensions false
+gsettings set org.gnome.desktop.interface color-scheme prefer-dark
+gsettings set org.gnome.desktop.interface clock-show-weekday true
+gsettings set org.gnome.desktop.interface clock-show-date true
+gsettings set org.gnome.desktop.interface show-battery-percentage false
+dconf write /org/gnome/shell/extensions/user-theme/name "'rice'"
+
+python3 -I $T/fake-player.py &
+gnome-shell --headless --wayland --virtual-monitor 1920x1080 --mode=ubuntu > $T/out/shell.log 2>&1 &
+shell=\$!
+
+# open the window on the test shell's socket only — never the real one
+for _ in \$(seq 40); do
+  wl=\$(grep -oP "Using Wayland display name '\\K[^']+" $T/out/shell.log | head -1 || true)
+  [[ -n \$wl ]] && break
+  sleep 0.5
+done
+if [[ -n \${wl:-} && \$wl != "$WAYLAND_DISPLAY" ]]; then
+  (sleep 3; WAYLAND_DISPLAY=\$wl GDK_BACKEND=wayland NO_AT_BRIDGE=1 python3 -I $T/window.py) >/dev/null 2>&1 &
+fi
+
+for _ in \$(seq 60); do [[ -f $T/out/done ]] && break; sleep 1; done
+kill \$shell 2>/dev/null; sleep 1; kill -9 \$shell 2>/dev/null || true
+EOF
+chmod +x "$T/inner.sh"
+
+before=$(gsettings get org.gnome.shell enabled-extensions)
+XDG_CONFIG_HOME="$T/config" XDG_DATA_HOME="$T/data" XDG_CACHE_HOME="$T/cache" \
+  timeout 120 dbus-run-session -- "$T/inner.sh" > "$T/out/session.log" 2>&1 || true
+if [[ $(gsettings get org.gnome.shell enabled-extensions) != "$before" ]]; then
+  echo "WARNING: the real enabled-extensions changed during the test" >&2
+fi
+
+grep -h ABORT "$T/out/session.log" >&2 || true
+cat "$T/out/probe.txt" "$T/out/cycle.txt" "$T/out/error.txt" 2>/dev/null || true
+grep -E 'JS ERROR|rice-bar' "$T/out/shell.log" || true
+echo "output: $T/out"
