@@ -1,4 +1,4 @@
-// cpu 12  mem 41 — whole-system usage in percent, every 2 s, from /proc.
+// cpu 12%  mem 41% — whole-system usage, every 2 s, from /proc.
 // A value at or above HOT_PERCENT turns red-bright.
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
@@ -63,7 +63,7 @@ class Stats extends PanelMenu.Button {
     }
 
     _show(label, percent) {
-        label.text = percent === null ? '--' : `${Math.round(percent)}`.padStart(2);
+        label.text = percent === null ? '--%' : `${Math.round(percent)}%`;
         if (percent !== null && percent >= HOT_PERCENT)
             label.add_style_class_name('hot');
         else

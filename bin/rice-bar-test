@@ -4,6 +4,9 @@
 #
 #   rice-bar-test            → prints the output dir: probe.txt, cycle.txt,
 #                              panel.png, screen.png, shell.log
+#   RICE_BAR_TEST_HOVER=dateMenu rice-bar-test
+#                            → same, with that panel item (a statusArea
+#                              role) drawn hovered in the screenshots
 #
 # The test shell gets its own session bus and its own XDG config/data/cache
 # dirs, so its dconf writes land in a scratch database. That isolation only
@@ -76,6 +79,10 @@ export default class extends Extension {
             'workspaces: ' + bar['rice-workspaces']?._box.get_children().map(b => b.get_style_class_name()).join(' / '),
         ].join('\n') + '\n');
 
+        const hover = GLib.getenv('RICE_BAR_TEST_HOVER');
+        if (hover)
+            bar[hover]?.add_style_pseudo_class('hover');
+        await pause(500);
         const w = global.stage.width;
         for (const [name, h] of [['panel', Main.panel.height + 8], ['screen', global.stage.height]]) {
             const stream = Gio.File.new_for_path(\`\${OUT}/\${name}.png\`)

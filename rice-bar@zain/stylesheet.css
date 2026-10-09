@@ -35,14 +35,30 @@
   background-color: #222222;
 }
 
-/* yaru draws the clock as a second pill inside the button */
-#panel .panel-button.clock-display .clock-display-box,
-#panel .panel-button.clock-display:hover .clock-display-box,
-#panel .panel-button.clock-display:active .clock-display-box,
-#panel .panel-button.clock-display:checked .clock-display-box {
-  box-shadow: none;
-  background-color: transparent;
+/* Yaru pins the clock button's own background to `none !important` and
+ * instead draws its hover as a rounded pill on the .clock label inside.
+ * Flatten the label in every state and put the hover back on the button
+ * (these :hover/:active selectors outrank Yaru's, so !important wins). */
+#panel .panel-button.clock-display:hover,
+#panel .panel-button.clock-display:focus {
+  background-color: #1a1a1a !important;
+}
+
+#panel .panel-button.clock-display:active,
+#panel .panel-button.clock-display:checked {
+  background-color: #222222 !important;
+}
+
+#panel .panel-button.clock-display .clock,
+#panel .panel-button.clock-display:hover .clock,
+#panel .panel-button.clock-display:focus .clock,
+#panel .panel-button.clock-display:active .clock,
+#panel .panel-button.clock-display:checked .clock,
+#panel .panel-button.clock-display:active .clock:hover,
+#panel .panel-button.clock-display:checked .clock:hover {
+  border: 0;
   border-radius: 0;
+  box-shadow: none;
 }
 
 #panel .clock {
@@ -106,18 +122,26 @@
   color: #444444;
 }
 
-/* cpu 12  mem 41  bat 87% 3:12 */
+/* cpu 12%  mem 41%  bat 87% 3:12 — one narrow gap inside a pair, one wide
+ * gap between pairs. The wide gap matches the space between two panel
+ * buttons (8px padding each side), so pairs in one segment and pairs in
+ * the next segment sit the same distance apart. */
 .rice-pairs {
-  spacing: 6px;
+  spacing: 0;
 }
 
 .rice-key {
   color: #666666;
+  padding-right: 6px;
 }
 
 .rice-val {
   color: #e0e0e0;
-  padding-right: 6px;
+  padding-right: 16px;
+}
+
+.rice-val:last-child {
+  padding-right: 0;
 }
 
 .rice-val.hot {

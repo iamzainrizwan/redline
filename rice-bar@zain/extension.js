@@ -1,7 +1,7 @@
 // rice bar: turns GNOME's top bar into something like the tmux status line.
 //
 //   left:  [host] 1 [2] 3  focused window
-//   right: ♪ now playing  cpu 12 mem 41  bat 87% 3:12  [quick settings]  clock
+//   right: ♪ now playing  cpu 12% mem 41%  bat 87% 3:12  [quick settings]  clock
 //
 // Only the segments are new. Quick settings and the calendar menu are
 // GNOME's own (the clock is moved from the centre to the far right); the
