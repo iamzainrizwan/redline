@@ -9,6 +9,9 @@
 #                              role) drawn hovered in the screenshots
 #   RICE_BAR_TEST_OPEN=quickSettings rice-bar-test
 #                            → same, with that item's menu open
+#   RICE_BAR_TEST_TRACK='a long title' rice-bar-test
+#                            → the fake player's track title (with
+#                              HOVER=rice-nowplaying: the full-text tooltip)
 #
 # The test shell gets its own session bus and its own XDG config/data/cache
 # dirs, so its dconf writes land in a scratch database. That isolation only
@@ -99,8 +102,10 @@ export default class extends Extension {
         if (open)
             bar[open]?.menu.open(false);
         const hover = GLib.getenv('RICE_BAR_TEST_HOVER');
-        if (hover)
+        if (hover) {
             bar[hover]?.add_style_pseudo_class('hover');
+            bar[hover]?.set_hover(true); // what tooltips listen for
+        }
         await pause(500);
         const w = global.stage.width;
         for (const [name, h] of [['panel', Main.panel.height + 8], ['screen', global.stage.height]]) {
@@ -141,16 +146,18 @@ export default class extends Extension {
 EOF
 
 cat > "$T/fake-player.py" <<'EOF'
+import os
 from gi.repository import Gio, GLib
 XML = '''<node><interface name="org.mpris.MediaPlayer2.Player">
 <property name="PlaybackStatus" type="s" access="read"/>
 <property name="Metadata" type="a{sv}" access="read"/>
 <method name="PlayPause"/><method name="Next"/><method name="Previous"/>
 </interface></node>'''
+TITLE = os.environ.get('RICE_BAR_TEST_TRACK') or 'Windowlicker'
 def get_prop(conn, sender, path, iface, prop):
     if prop == 'PlaybackStatus':
         return GLib.Variant('s', 'Playing')
-    return GLib.Variant('a{sv}', {'xesam:title': GLib.Variant('s', 'Windowlicker'),
+    return GLib.Variant('a{sv}', {'xesam:title': GLib.Variant('s', TITLE),
                                   'xesam:artist': GLib.Variant('as', ['Aphex Twin'])})
 def on_bus(conn, name):
     conn.register_object('/org/mpris/MediaPlayer2', Gio.DBusNodeInfo.new_for_xml(XML).interfaces[0],

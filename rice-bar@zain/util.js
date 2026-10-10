@@ -1,8 +1,51 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import St from 'gi://St';
+
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 export function truncate(text, max) {
     return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+// The whole text under a segment while it's hovered, if the bar shows it
+// cut off by truncate(). Placed like the dash's app-name labels: chrome on
+// the stage, centred under the segment, kept on its monitor. Call sync()
+// after changing the text so an open tooltip follows along.
+export class FullTextTooltip {
+    constructor(button, label) {
+        this._button = button;
+        this._label = label;
+        this.text = '';
+        this._tooltip = new St.Label({style_class: 'rice-tooltip', visible: false});
+        Main.layoutManager.addChrome(this._tooltip);
+        button.connectObject(
+            'notify::hover', () => this.sync(),
+            'destroy', () => this._destroy(),
+            this);
+    }
+
+    sync() {
+        if (!this._button.hover || !this.text || this.text === this._label.text) {
+            this._tooltip.hide();
+            return;
+        }
+        this._tooltip.text = this.text;
+        const [x, y] = this._button.get_transformed_position();
+        const [width, height] = this._button.get_transformed_size();
+        const [, tipWidth] = this._tooltip.get_preferred_width(-1);
+        const monitor = Main.layoutManager.findMonitorForActor(this._button);
+        const tipX = Math.min(
+            Math.max(x + (width - tipWidth) / 2, monitor.x),
+            monitor.x + monitor.width - tipWidth);
+        this._tooltip.set_position(Math.floor(tipX), Math.floor(y + height));
+        this._tooltip.show();
+    }
+
+    _destroy() {
+        Main.layoutManager.removeChrome(this._tooltip);
+        this._tooltip.destroy();
+    }
 }
 
 export function isCancelled(e) {

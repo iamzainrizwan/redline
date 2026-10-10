@@ -114,6 +114,20 @@
   color: #666666;
 }
 
+/* hoverable only for its tooltip — don't look like a button */
+#panel .panel-button.rice-title:hover {
+  background-color: transparent;
+}
+
+/* full text of a cut-off title / track, under the segment on hover */
+.rice-tooltip {
+  font-family: "BlexMono Nerd Font", monospace;
+  color: #e0e0e0;
+  background-color: #0a0a0a;
+  border: 1px solid #333333;
+  padding: 4px 8px;
+}
+
 /* now playing */
 /* 16px: the music glyph overhangs its advance by ~8px, so 8px left the
  * icon touching the text */

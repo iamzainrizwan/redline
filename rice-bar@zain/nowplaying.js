@@ -9,7 +9,7 @@ import St from 'gi://St';
 
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 
-import {isCancelled, truncate} from './util.js';
+import {FullTextTooltip, isCancelled, truncate} from './util.js';
 
 const MPRIS_PREFIX = 'org.mpris.MediaPlayer2.';
 const MPRIS_PATH = '/org/mpris/MediaPlayer2';
@@ -32,6 +32,7 @@ class NowPlaying extends PanelMenu.Button {
         box.add_child(this._icon);
         box.add_child(this._label);
         this.add_child(box);
+        this._tooltip = new FullTextTooltip(this, this._label);
 
         this._players = new Map(); // bus name → Gio.DBusProxy
         this._wanted = new Set(); // bus names currently on the bus
@@ -128,10 +129,15 @@ class NowPlaying extends PanelMenu.Button {
         const title = metadata['xesam:title']?.unpack() ?? '';
         if (!current || !title) {
             this.hide();
+            this._tooltip.text = '';
+            this._tooltip.sync();
             return;
         }
         const artist = (metadata['xesam:artist']?.deepUnpack() ?? []).join(', ');
-        this._label.text = truncate(artist ? `${artist} – ${title}` : title, MAX_CHARS);
+        const text = artist ? `${artist} – ${title}` : title;
+        this._label.text = truncate(text, MAX_CHARS);
+        this._tooltip.text = text;
+        this._tooltip.sync();
         if (current.playing)
             this.remove_style_class_name('paused');
         else
