@@ -115,9 +115,11 @@
 }
 
 /* now playing */
+/* 16px: the music glyph overhangs its advance by ~8px, so 8px left the
+ * icon touching the text */
 .rice-np-icon {
   color: #cc2222;
-  padding-right: 8px;
+  padding-right: 16px;
 }
 
 #panel .panel-button.rice-nowplaying.paused,
