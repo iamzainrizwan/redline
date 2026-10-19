@@ -3,7 +3,8 @@
 # touching the live session or logging out:
 #
 #   rice-bar-test            → prints the output dir: probe.txt, cycle.txt,
-#                              panel.png, screen.png, shell.log
+#                              panel.png, screen.png, osd.png (US→UK
+#                              layout popup), shell.log
 #   RICE_BAR_TEST_HOVER=dateMenu rice-bar-test
 #                            → same, with that panel item (a statusArea
 #                              role) drawn hovered in the screenshots
@@ -140,6 +141,26 @@ export default class extends Extension {
             '--- after re-enable', ...layout(),
             'state: ' + em.lookup('rice-bar@zain')?.state + ' (1 = enabled)',
         ].join('\n') + '\n');
+        // control: GNOME's OSD shown directly, no layout change involved
+        Main.osdWindowManager.show(-1, Gio.ThemedIcon.new('audio-volume-high-symbolic'), 'control');
+        await pause(400);
+        const ctl = Main.osdWindowManager._osdWindows[0];
+        GLib.file_set_contents(OUT + '/osd-control.txt', \`control visible=\${ctl.visible} opacity=\${ctl.opacity}\n\`);
+        await pause(2500);
+        // a layout change should pop the OSD (layoutosd.js)
+        const sources = new Gio.Settings({schema_id: 'org.gnome.desktop.input-sources'});
+        sources.set_value('sources', new GLib.Variant('a(ss)', [['xkb', 'us']]));
+        // past the first OSD's 1.5 s hide + fade, which would otherwise hide
+        // this one as it finishes
+        await pause(3000);
+        sources.set_value('sources', new GLib.Variant('a(ss)', [['xkb', 'gb']]));
+        await pause(400);
+        const osd = Main.osdWindowManager._osdWindows[0];
+        GLib.file_set_contents(OUT + '/osd.txt', \`osd visible=\${osd?.visible} label=\${osd?._label.text} timer=\${osd?._hideTimeoutId} opacity=\${osd?.opacity} gicon=\${osd?._icon.gicon} windows=\${Main.osdWindowManager._osdWindows.length} monitors=\${Main.layoutManager.monitors.length}\n\`);
+        const osdStream = Gio.File.new_for_path(OUT + '/osd.png')
+            .replace(null, false, Gio.FileCreateFlags.NONE, null);
+        await new Shell.Screenshot().screenshot_area(0, 0, global.stage.width, global.stage.height, osdStream);
+        osdStream.close(null);
         GLib.file_set_contents(OUT + '/done', 'ok');
     }
 }

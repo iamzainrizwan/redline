@@ -3,6 +3,8 @@
 //   left:  [host] 1 [2] 3  focused window
 //   right: ♪ now playing  cpu 12% mem 41%  bat 87% 3:12  [quick settings]  clock
 //
+// Changing keyboard layout (US/UK) pops GNOME's OSD box with its name.
+//
 // Only the segments are new. Quick settings and the calendar menu are
 // GNOME's own (the clock is moved from the centre to the far right); the
 // rice shell theme and stylesheet.css restyle them. Colors are palette.md.
@@ -17,6 +19,7 @@ import {WindowTitle} from './title.js';
 import {NowPlaying} from './nowplaying.js';
 import {Stats} from './stats.js';
 import {Battery} from './battery.js';
+import {LayoutOsd} from './layoutosd.js';
 
 const SEGMENTS = [
     // role, class, box, position
@@ -32,6 +35,7 @@ export default class RiceBarExtension extends Extension {
     enable() {
         this._segments = SEGMENTS.map(([role, Segment, box, position]) =>
             Main.panel.addToStatusArea(role, new Segment(), position, box));
+        this._layoutOsd = new LayoutOsd();
 
         // the host tag opens the overview instead
         Main.panel.statusArea.activities.container.hide();
@@ -61,6 +65,8 @@ export default class RiceBarExtension extends Extension {
     disable() {
         this._segments.forEach(s => s.destroy());
         this._segments = null;
+        this._layoutOsd.destroy();
+        this._layoutOsd = null;
 
         Main.panel.statusArea.activities.container.show();
 
