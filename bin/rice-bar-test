@@ -5,7 +5,7 @@
 #   rice-bar-test            → prints the output dir: probe.txt, cycle.txt,
 #                              panel.png, screen.png, osd.png (US→UK
 #                              layout popup), osd-file.png (rice-osd),
-#                              shell.log
+#                              osd-level.png (volume-style), shell.log
 #   RICE_BAR_TEST_HOVER=dateMenu rice-bar-test
 #                            → same, with that panel item (a statusArea
 #                              role) drawn hovered in the screenshots
@@ -172,6 +172,14 @@ export default class extends Extension {
             .replace(null, false, Gio.FileCreateFlags.NONE, null);
         await new Shell.Screenshot().screenshot_area(0, 0, global.stage.width, global.stage.height, fileStream);
         fileStream.close(null);
+        // a volume-style OSD with a level bar, for the theme's bar colours
+        await pause(3000);
+        Main.osdWindowManager.show(-1, Gio.ThemedIcon.new('audio-volume-medium-symbolic'), 'Speakers', 0.6, 1);
+        await pause(600);
+        const levelStream = Gio.File.new_for_path(OUT + '/osd-level.png')
+            .replace(null, false, Gio.FileCreateFlags.NONE, null);
+        await new Shell.Screenshot().screenshot_area(0, 0, global.stage.width, global.stage.height, levelStream);
+        levelStream.close(null);
         GLib.file_set_contents(OUT + '/done', 'ok');
     }
 }
