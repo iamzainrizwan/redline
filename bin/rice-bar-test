@@ -4,7 +4,8 @@
 #
 #   rice-bar-test            → prints the output dir: probe.txt, cycle.txt,
 #                              panel.png, screen.png, osd.png (US→UK
-#                              layout popup), shell.log
+#                              layout popup), osd-file.png (rice-osd),
+#                              shell.log
 #   RICE_BAR_TEST_HOVER=dateMenu rice-bar-test
 #                            → same, with that panel item (a statusArea
 #                              role) drawn hovered in the screenshots
@@ -161,6 +162,16 @@ export default class extends Extension {
             .replace(null, false, Gio.FileCreateFlags.NONE, null);
         await new Shell.Screenshot().screenshot_area(0, 0, global.stage.width, global.stage.height, osdStream);
         osdStream.close(null);
+        // bin/rice-osd -> riceosd.js: a script-triggered OSD (test's own file)
+        await pause(3000);
+        GLib.spawn_command_line_async(\`\${GLib.get_home_dir()}/rice/bin/rice-osd video-display-symbolic '60 Hz'\`);
+        await pause(700);
+        const fosd = Main.osdWindowManager._osdWindows[0];
+        GLib.file_set_contents(OUT + '/osd-file.txt', \`rice-osd visible=\${fosd.visible} label=\${fosd._label.text}\n\`);
+        const fileStream = Gio.File.new_for_path(OUT + '/osd-file.png')
+            .replace(null, false, Gio.FileCreateFlags.NONE, null);
+        await new Shell.Screenshot().screenshot_area(0, 0, global.stage.width, global.stage.height, fileStream);
+        fileStream.close(null);
         GLib.file_set_contents(OUT + '/done', 'ok');
     }
 }
@@ -216,6 +227,7 @@ gsettings set org.gnome.desktop.interface clock-show-date true
 gsettings set org.gnome.desktop.interface show-battery-percentage false
 dconf write /org/gnome/shell/extensions/user-theme/name "'rice'"
 
+export RICE_OSD_FILE=$T/rice-osd  # keep rice-osd off the real session's file
 python3 -I $T/fake-player.py &
 gnome-shell --headless --wayland --virtual-monitor 1920x1080 --mode=ubuntu > $T/out/shell.log 2>&1 &
 shell=\$!
