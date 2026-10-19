@@ -9,6 +9,9 @@
 #   RICE_BAR_TEST_HOVER=dateMenu rice-bar-test
 #                            → same, with that panel item (a statusArea
 #                              role) drawn hovered in the screenshots
+#   RICE_BAR_TEST_SHOW=overview|apps|lock rice-bar-test
+#                            → same, with the overview, app grid or lock
+#                              screen up in screen.png
 #   RICE_BAR_TEST_OPEN=quickSettings rice-bar-test
 #                            → same, with that item's menu open
 #   RICE_BAR_TEST_TRACK='a long title' rice-bar-test
@@ -103,6 +106,15 @@ export default class extends Extension {
         const open = GLib.getenv('RICE_BAR_TEST_OPEN');
         if (open)
             bar[open]?.menu.open(false);
+        const show = GLib.getenv('RICE_BAR_TEST_SHOW');
+        if (show === 'overview')
+            Main.overview.show();
+        else if (show === 'apps')
+            Main.overview.showApps();
+        else if (show === 'lock')
+            Main.screenShield.lock(false);
+        if (show)
+            await pause(2500);
         const hover = GLib.getenv('RICE_BAR_TEST_HOVER');
         if (hover) {
             bar[hover]?.add_style_pseudo_class('hover');
