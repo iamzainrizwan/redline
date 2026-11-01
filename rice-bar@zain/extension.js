@@ -48,6 +48,12 @@ export default class RiceBarExtension extends Extension {
         const clock = dateMenu.container;
         clock.get_parent().remove_child(clock);
         Main.panel._rightBox.add_child(clock);
+        // Indicators that load later (or just-perfection re-pinning it) can
+        // land after the clock; keep it last whenever the right box changes.
+        this._clockKeeper = Main.panel._rightBox.connect('child-added', box => {
+            if (clock.get_parent() === box && box.get_last_child() !== clock)
+                box.set_child_above_sibling(clock, null);
+        });
 
         // GNOME keeps the centred clock centred with an invisible pad on its
         // left, as wide as the notification dot on its right (and shown
@@ -75,6 +81,10 @@ export default class RiceBarExtension extends Extension {
 
         Main.panel.statusArea.activities.container.show();
 
+        if (this._clockKeeper) {
+            Main.panel._rightBox.disconnect(this._clockKeeper);
+            this._clockKeeper = 0;
+        }
         const dateMenu = Main.panel.statusArea.dateMenu;
         const clock = dateMenu.container;
         clock.get_parent()?.remove_child(clock);
