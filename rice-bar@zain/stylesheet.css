@@ -136,11 +136,6 @@
 /* now playing */
 /* 16px: the music glyph overhangs its advance by ~8px, so 8px left the
  * icon touching the text */
-.rice-np-time {
-  color: #666666;
-  padding-left: 12px;
-}
-
 .rice-np-icon {
   color: #cc2222;
   padding-right: 16px;
@@ -190,13 +185,21 @@
   background-color: #cc2222;
 }
 
+.rice-np-progress {
+  spacing: 4px;
+}
+
+.rice-np-times {
+  color: #666666;
+  font-size: 0.9em;
+}
+
 .rice-np-card.paused .rice-np-fill {
   background-color: #444444;
 }
 
 #panel .panel-button.rice-nowplaying.paused,
-#panel .panel-button.rice-nowplaying.paused .rice-np-icon,
-#panel .panel-button.rice-nowplaying.paused .rice-np-time {
+#panel .panel-button.rice-nowplaying.paused .rice-np-icon {
   color: #444444;
 }
 
