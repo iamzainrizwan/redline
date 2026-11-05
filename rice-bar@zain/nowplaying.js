@@ -1,6 +1,6 @@
 //  artist – title — whatever MPRIS player is playing (Spotify, a browser
 // tab, mpv...), else the first paused one; hidden when there's none. Too
-// long for the bar → just the title, cut with … if that's still too long.
+// long for the bar (chars or pixels) → just the title, cut with … if that's still too long.
 // Hover for a card with art, title, artist, album and a progress bar.
 // Click to play/pause, scroll to skip. Same source as cmatrix-saver's bar.
 import Clutter from 'gi://Clutter';
@@ -175,6 +175,19 @@ class NowPlaying extends PanelMenu.Button {
             y_align: Clutter.ActorAlign.CENTER,
         });
         this._label = new St.Label({y_align: Clutter.ActorAlign.CENTER});
+        // under MAX_CHARS can still be too wide for the room the panel has
+        // (St ellipsizes it); drop the artist then too, once it's laid out
+        this._short = '';
+        this._label.connect('notify::allocation', () => {
+            if (!this._short || this._label.text === this._short ||
+                !this._label.clutter_text.get_layout().is_ellipsized())
+                return;
+            this._fitIdle ||= GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                this._fitIdle = 0;
+                this._label.text = this._short;
+                return GLib.SOURCE_REMOVE;
+            });
+        });
         box.add_child(this._icon);
         box.add_child(this._label);
         this.add_child(box);
@@ -220,6 +233,8 @@ class NowPlaying extends PanelMenu.Button {
         this.connect('scroll-event', (_actor, event) => this._onScroll(event));
         this.connect('destroy', () => {
             this._cancellable.cancel();
+            if (this._fitIdle)
+                GLib.source_remove(this._fitIdle);
             bus.signal_unsubscribe(this._nameWatch);
             this._players.clear();
         });
@@ -280,7 +295,13 @@ class NowPlaying extends PanelMenu.Button {
         }
         const artist = (metadata['xesam:artist']?.deepUnpack() ?? []).join(', ');
         const text = artist ? `${artist} – ${title}` : title;
-        this._label.text = text.length <= MAX_CHARS ? text : truncate(title, MAX_CHARS);
+        this._short = truncate(title, MAX_CHARS);
+        const full = text.length <= MAX_CHARS ? text : this._short;
+        // re-set only on a real change, so a fit-shortened label stays short
+        if (full !== this._full) {
+            this._full = full;
+            this._label.text = full;
+        }
         if (current.playing)
             this.remove_style_class_name('paused');
         else
