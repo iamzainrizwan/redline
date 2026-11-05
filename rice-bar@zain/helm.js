@@ -1,14 +1,18 @@
 // [helm #12 14:30] — the block at the far left, where tmux keeps its
-// session name: the next unticked floor block from `helm today`. Dark
-// normally; red once a floor block's start time has passed and it's still
-// unticked (it then names the earliest such block). "helm" + a tick when
-// the floor is done. Hover for today's unticked blocks. Click (or Super)
-// opens the overview; replaces the Activities button.
+// session name: what to do next, from `helm missed`. Red when a floor
+// block is missed (unticked and its time has started, or untimed):
+// it names the first, which helm's own ranking (uni > cybersoc > leetcode
+// > c++ > applications > s3ntry/ledgr, floor before stretch) puts first.
+// Dark when nothing is missed: it names the next block to start. "helm" +
+// a tick when the day's blocks are all done. Hover for the list. Click (or
+// Super) opens the overview; replaces the Activities button.
 //
-// Data: ~/vault/helm/cli/helm today --json (the CLI tries both of helm's
-// URLs itself), every REFRESH_SECONDS and on hover. If helm can't be
-// reached the tag falls back to the hostname. From QUIET_FROM to QUIET_TO
-// it never goes red: helm reads every block as unticked after 1am.
+// Data: ~/vault/helm/cli/helm missed --all --json, every REFRESH_SECONDS
+// and on hover; --all adds the blocks that haven't started, and "started"
+// is judged here the way helm judges it (untimed counts, and before 04:00
+// helm means yesterday, where everything has). The order is helm's; it's
+// never re-sorted here. If the CLI fails it's retried with HELM_URL set to
+// FALLBACK_URL, and if that fails too the tag falls back to the hostname.
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -25,30 +29,40 @@ Gio._promisify(Gio.Subprocess.prototype, 'communicate_utf8_async');
 
 const HELM = GLib.getenv('RICE_BAR_HELM') ??
     GLib.build_filenamev([GLib.get_home_dir(), 'vault', 'helm', 'cli', 'helm']);
+const FALLBACK_URL = 'http://alexandria/helm/api';
 const REFRESH_SECONDS = 300;
 const HOVER_REFRESH_SECONDS = 60; // a hover refetches if the data is older
-const QUIET_FROM = 1; // 01:00
-const QUIET_TO = 5; // 05:00
 const TICK = ''; // nf-fa-check
 const TASK_CHARS = 44;
-
-function minutes(hhmm) {
-    const [h, m] = hhmm.split(':').map(Number);
-    return h * 60 + m;
-}
 
 function hours(h) {
     return `${Math.round(h * 10) / 10}`.replace(/\.0$/, '');
 }
 
-// The hover card: "today  4/8.3h floor", then one row per unticked block:
-// time, #id, project, task. Overdue floor rows red, stretch rows dim.
+async function runHelm(env = {}) {
+    const launcher = new Gio.SubprocessLauncher({
+        flags: Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE,
+    });
+    for (const [key, value] of Object.entries(env))
+        launcher.setenv(key, value, true);
+    const proc = launcher.spawnv([HELM, 'missed', '--all', '--json']);
+    const [stdout] = await proc.communicate_utf8_async(null, null);
+    if (!proc.get_successful())
+        throw new Error(`helm exited ${proc.get_exit_status()}`);
+    return JSON.parse(stdout);
+}
+
+// The hover card: "missed 5 · 5.8h (4.3h floor)", then helm's tiers in its
+// order, one row per block: time, #id, project, task (the LeetCode problem
+// for a LeetCode slot). Missed floor rows red, stretch rows dim, blocks
+// still to come plain.
 class HelmCard {
     constructor(button) {
         this._button = button;
         this.actor = new St.BoxLayout({
             style_class: 'rice-helm-card', vertical: true, visible: false,
         });
+        // above the dock, which would otherwise cover the card's left edge
         Main.layoutManager.addTopChrome(this.actor, {affectsInputRegion: false});
         button.connectObject(
             'notify::hover', () => this.sync(),
@@ -59,10 +73,15 @@ class HelmCard {
             this);
     }
 
-    set(rows, header) {
+    set(header, rows) {
         this.actor.destroy_all_children();
         this.actor.add_child(new St.Label({text: header, style_class: 'rice-helm-head'}));
-        for (const {at, id, project, task, kind} of rows) {
+        let tier = null;
+        for (const {at, id, project, task, kind, tier: rowTier} of rows) {
+            if (rowTier !== tier) {
+                tier = rowTier;
+                this.actor.add_child(new St.Label({text: tier, style_class: 'rice-helm-tier'}));
+            }
             const row = new St.BoxLayout({style_class: `rice-helm-row ${kind}`});
             const cell = (text, style) => {
                 const label = new St.Label({text, style_class: style});
@@ -102,7 +121,6 @@ class Helm extends PanelMenu.Button {
         this._card = new HelmCard(this);
         this._data = null;
         this._fetchedAt = 0;
-        this._cancellable = new Gio.Cancellable();
 
         this.connect('button-press-event', () => {
             Main.overview.toggle();
@@ -112,7 +130,7 @@ class Helm extends PanelMenu.Button {
             if (this.hover && GLib.get_monotonic_time() / 1e6 - this._fetchedAt > HOVER_REFRESH_SECONDS)
                 this._fetch();
         });
-        // refetch now and then; re-judge "overdue" every 30 s as time passes
+        // refetch now and then; re-judge "started" every 30 s as time passes
         let ticks = 0;
         this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => {
             ticks = (ticks + 1) % (REFRESH_SECONDS / 30);
@@ -123,7 +141,7 @@ class Helm extends PanelMenu.Button {
             return GLib.SOURCE_CONTINUE;
         });
         this.connect('destroy', () => {
-            this._cancellable.cancel();
+            this._destroyed = true;
             GLib.source_remove(this._timer);
         });
         this._fetch();
@@ -133,66 +151,65 @@ class Helm extends PanelMenu.Button {
         if (this._fetching)
             return;
         this._fetching = true;
+        let data = null;
         try {
-            const proc = Gio.Subprocess.new([HELM, 'today', '--json'],
-                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
-            const [stdout] = await proc.communicate_utf8_async(null, this._cancellable);
-            if (!proc.get_successful())
-                throw new Error(`helm exited ${proc.get_exit_status()}`);
-            this._data = JSON.parse(stdout);
-            this._fetchedAt = GLib.get_monotonic_time() / 1e6;
-        } catch (e) {
-            if (this._cancellable.is_cancelled())
-                return;
-            this._data = null; // stale data would lie about what's done
-            console.log(`rice-bar: helm unavailable: ${e.message}`);
-        } finally {
-            this._fetching = false;
+            data = await runHelm();
+        } catch {
+            try {
+                data = await runHelm({HELM_URL: FALLBACK_URL});
+            } catch (e) {
+                console.log(`rice-bar: helm unavailable: ${e.message}`);
+            }
         }
+        this._fetching = false;
+        if (this._destroyed)
+            return;
+        this._data = data; // null on failure: stale data would lie about what's done
+        if (data)
+            this._fetchedAt = GLib.get_monotonic_time() / 1e6;
         this._render();
     }
 
     _render() {
-        const plan = this._data?.plan?.[0];
-        if (!plan) {
+        const data = this._data;
+        if (!data?.blocks) {
             this._label.text = GLib.get_host_name();
             this.remove_style_class_name('overdue');
-            this._card.set([], 'helm unreachable');
+            this._card.set('helm unreachable', []);
             return;
         }
         const now = GLib.DateTime.new_now_local();
-        const nowMinutes = now.get_hour() * 60 + now.get_minute();
-        const quiet = now.get_hour() >= QUIET_FROM && now.get_hour() < QUIET_TO;
+        const today = now.format('%Y-%m-%d');
+        const time = now.format('%H:%M');
+        // helm's rule: an earlier day has all started; today, untimed blocks
+        // and ones whose time has come
+        const started = b => data.date < today || !b.at || b.at <= time;
 
-        const open = plan.blocks.filter(b => b.kind !== 'open' && b.done === false);
-        const started = b => b.at !== null && minutes(b.at) <= nowMinutes;
-        const byTime = (a, b) => minutes(a.at) - minutes(b.at);
-        const floor = open.filter(b => b.floor);
-        const overdue = quiet ? [] : floor.filter(started).sort(byTime);
-        const next = overdue[0] ??
-            floor.filter(b => b.at !== null && !started(b)).sort(byTime)[0] ??
-            floor.find(b => b.at === null) ??
-            floor[0];
+        const missed = data.blocks.filter(started);
+        const upcoming = data.blocks.filter(b => !started(b));
+        const next = missed[0] ??
+            upcoming.reduce((a, b) => (a && a.at <= b.at ? a : b), null);
 
         if (next)
             this._label.text = next.at ? `helm #${next.block_id} ${next.at}` : `helm #${next.block_id}`;
         else
             this._label.text = `helm ${TICK}`;
-        if (overdue.length)
+        // red for missed floor only: stretch is optional
+        if (missed.some(b => b.floor))
             this.add_style_class_name('overdue');
         else
             this.remove_style_class_name('overdue');
 
-        // card: timed blocks in time order, then untimed; floor before stretch
-        const order = b => (b.floor ? 0 : 2) + (b.at === null ? 1 : 0);
-        const rows = [...open]
-            .sort((a, b) => order(a) - order(b) || (a.at && b.at ? byTime(a, b) : 0))
-            .map(b => ({
-                at: b.at, id: b.block_id, project: b.project, task: b.task,
-                kind: !b.floor ? 'stretch' : overdue.includes(b) ? 'overdue' : 'floor',
-            }));
-        const header = `today  ${hours(plan.floor_done_hours)}/${hours(plan.floor_hours)}h floor` +
-            (open.length ? '' : `  ${TICK}`);
-        this._card.set(rows, header);
+        const sum = (blocks, f = () => true) =>
+            blocks.filter(f).reduce((h, b) => h + b.hours, 0);
+        const header = missed.length
+            ? `missed ${missed.length} · ${hours(sum(missed))}h (${hours(sum(missed, b => b.floor))}h floor)`
+            : `nothing missed  ${TICK}`;
+        const rows = data.blocks.map(b => ({
+            at: b.at, id: b.block_id, project: b.project, tier: b.tier,
+            task: b.label ?? b.task,
+            kind: !b.floor ? 'stretch' : started(b) ? 'overdue' : 'floor',
+        }));
+        this._card.set(header, rows);
     }
 });

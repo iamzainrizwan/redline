@@ -110,6 +110,11 @@
   padding-bottom: 4px;
 }
 
+.rice-helm-tier {
+  color: #444444;
+  padding-top: 4px;
+}
+
 .rice-helm-row {
   spacing: 12px;
   color: #e0e0e0;
