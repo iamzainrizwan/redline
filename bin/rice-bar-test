@@ -17,6 +17,11 @@
 #   RICE_BAR_TEST_TRACK='a long title' rice-bar-test
 #                            → the fake player's track title (with
 #                              HOVER=rice-nowplaying: the track card)
+#   RICE_BAR_TEST_UPOWER=1 rice-bar-test
+#                            → a fake UPower on the test bus: on battery
+#                              (64%, 3:12 left), headphones at 80% and a
+#                              mouse at 15%; also forces the cpu/mem
+#                              alerts on (threshold 0)
 #
 # The test shell gets its own session bus and its own XDG config/data/cache
 # dirs, so its dconf writes land in a scratch database. That isolation only
@@ -230,6 +235,51 @@ Gio.bus_own_name(Gio.BusType.SESSION, 'org.mpris.MediaPlayer2.fakeplayer', 0, on
 GLib.MainLoop().run()
 EOF
 
+cat > "$T/fake-upower.py" <<'EOF'
+from gi.repository import Gio, GLib
+BASE = '/org/freedesktop/UPower/devices/'
+XML = '''<node>
+<interface name="org.freedesktop.UPower">
+<method name="EnumerateDevices"><arg type="ao" direction="out"/></method>
+<signal name="DeviceAdded"><arg type="o"/></signal>
+<signal name="DeviceRemoved"><arg type="o"/></signal>
+</interface>
+<interface name="org.freedesktop.UPower.Device">
+<property name="Type" type="u" access="read"/>
+<property name="PowerSupply" type="b" access="read"/>
+<property name="IsPresent" type="b" access="read"/>
+<property name="Percentage" type="d" access="read"/>
+<property name="State" type="u" access="read"/>
+<property name="TimeToEmpty" type="x" access="read"/>
+<property name="TimeToFull" type="x" access="read"/>
+<property name="Model" type="s" access="read"/>
+</interface></node>'''
+NODE = Gio.DBusNodeInfo.new_for_xml(XML)
+# Type 2 battery, 19 headphones, 5 mouse; State 2 discharging
+DEVICES = {
+    'DisplayDevice': dict(Type=('u', 2), PowerSupply=('b', True), IsPresent=('b', True),
+                          Percentage=('d', 64.0), State=('u', 2), TimeToEmpty=('x', 11520),
+                          TimeToFull=('x', 0), Model=('s', '')),
+    'headset_dev_00': dict(Type=('u', 19), PowerSupply=('b', False), IsPresent=('b', True),
+                           Percentage=('d', 80.0), State=('u', 2), TimeToEmpty=('x', 0),
+                           TimeToFull=('x', 0), Model=('s', 'WH-1000XM4')),
+    'mouse_dev_01': dict(Type=('u', 5), PowerSupply=('b', False), IsPresent=('b', True),
+                         Percentage=('d', 15.0), State=('u', 2), TimeToEmpty=('x', 0),
+                         TimeToFull=('x', 0), Model=('s', 'M602')),
+}
+def call(conn, sender, path, iface, method, params, inv):
+    inv.return_value(GLib.Variant('(ao)', ([BASE + n for n in DEVICES if n != 'DisplayDevice'],)))
+def get_prop(conn, sender, path, iface, prop):
+    t, v = DEVICES[path.rsplit('/', 1)[1]][prop]
+    return GLib.Variant(t, v)
+def on_bus(conn, name):
+    conn.register_object('/org/freedesktop/UPower', NODE.interfaces[0], call, None, None)
+    for n in DEVICES:
+        conn.register_object(BASE + n, NODE.interfaces[1], None, get_prop, None)
+Gio.bus_own_name(Gio.BusType.SESSION, 'org.freedesktop.UPower', 0, on_bus, None, None)
+GLib.MainLoop().run()
+EOF
+
 cat > "$T/window.py" <<'EOF'
 import gi
 gi.require_version('Gtk', '3.0')
@@ -261,6 +311,10 @@ dconf write /org/gnome/shell/extensions/user-theme/name "'rice'"
 
 export RICE_OSD_FILE=$T/rice-osd  # keep rice-osd off the real session's file
 python3 -I $T/fake-player.py &
+if [[ -n "${RICE_BAR_TEST_UPOWER:-}" ]]; then
+  python3 -I $T/fake-upower.py &
+  export RICE_BAR_UPOWER_BUS=session RICE_BAR_HOT_PERCENT=0
+fi
 gnome-shell --headless --wayland --virtual-monitor 1920x1080 --mode=ubuntu > $T/out/shell.log 2>&1 &
 shell=\$!
 

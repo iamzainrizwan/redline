@@ -1,6 +1,8 @@
 //  artist – title — whatever MPRIS player is playing (Spotify, a browser
-// tab, mpv...), else the first paused one; hidden when there's none. Too
-// long for the bar (chars or pixels) → just the title, cut with … if that's still too long.
+// tab, mpv...), else the first paused one; hidden when there's none. The
+// artist only shows with a short title (<= ARTIST_TITLE_CHARS) and when it
+// all fits (chars and pixels); else just the title, cut with … if that's
+// still too long.
 // Hover for a card with art, title, artist, album and a progress bar.
 // Click to play/pause, scroll to skip. Same source as cmatrix-saver's bar.
 import Clutter from 'gi://Clutter';
@@ -21,6 +23,7 @@ const MPRIS_PREFIX = 'org.mpris.MediaPlayer2.';
 const MPRIS_PATH = '/org/mpris/MediaPlayer2';
 const PLAYER_IFACE = 'org.mpris.MediaPlayer2.Player';
 const MAX_CHARS = 40;
+const ARTIST_TITLE_CHARS = 20;
 const ICON = ''; // nf-fa-music
 const ART_SIZE = 64;
 const TEXT_WIDTH = 230; // the card's text column; the title wraps at this
@@ -296,7 +299,8 @@ class NowPlaying extends PanelMenu.Button {
         const artist = (metadata['xesam:artist']?.deepUnpack() ?? []).join(', ');
         const text = artist ? `${artist} – ${title}` : title;
         this._short = truncate(title, MAX_CHARS);
-        const full = text.length <= MAX_CHARS ? text : this._short;
+        const full = text.length <= MAX_CHARS && title.length <= ARTIST_TITLE_CHARS
+            ? text : this._short;
         // re-set only on a real change, so a fit-shortened label stays short
         if (full !== this._full) {
             this._full = full;

@@ -73,3 +73,38 @@ export function addPair(box, key) {
     box.add_child(value);
     return [keyLabel, value];
 }
+
+// UPower's bus. rice-bar-test points it at its own session bus, where a
+// fake UPower plays battery and Bluetooth states the test machine can't.
+export const UPOWER_BUS = GLib.getenv('RICE_BAR_UPOWER_BUS') === 'session'
+    ? Gio.BusType.SESSION : Gio.BusType.SYSTEM;
+
+// Keeps a GNOME status icon hidden unless show(iconName) says otherwise,
+// on top of GNOME's own visibility (remembered, so a hidden icon reappears
+// when GNOME and show() both want it). Returns an undo for disable().
+export function gateIcon(icon, show) {
+    let wanted = icon.visible;
+    let ours = false;
+    const apply = () => {
+        const visible = wanted && show(icon.icon_name ?? '');
+        if (icon.visible === visible)
+            return;
+        ours = true;
+        icon.visible = visible;
+        ours = false;
+    };
+    const ids = [
+        icon.connect('notify::visible', () => {
+            if (ours)
+                return;
+            wanted = icon.visible;
+            apply();
+        }),
+        icon.connect('notify::icon-name', apply),
+    ];
+    apply();
+    return () => {
+        ids.forEach(id => icon.disconnect(id));
+        icon.visible = wanted;
+    };
+}

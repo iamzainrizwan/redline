@@ -1,14 +1,17 @@
 // rice bar: turns GNOME's top bar into something like the tmux status line.
 //
 //   left:  [host] 1 [2] 3  focused window
-//   right: ♪ now playing  bat 87% 3:12  [quick settings]  clock
+//   right: ♪ now playing  [cpu/mem alerts]  hp 80%  bat 87% 3:12  [quick settings]  clock
 //
 // Changing keyboard layout (US/UK) pops GNOME's OSD box with its name, and
 // scripts can pop it too with bin/rice-osd (riceosd.js).
 //
 // Only the segments are new. Quick settings and the calendar menu are
 // GNOME's own (the clock is moved from the centre to the far right); the
-// rice shell theme and stylesheet.css restyle them. Colors are palette.md.
+// rice shell theme and stylesheet.css restyle them, and gateIcon() keeps
+// their status icons quiet: no night light or notification bell, wifi only
+// when the connection is poor or down, volume only when muted. Colors are
+// palette.md.
 import GLib from 'gi://GLib';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -18,9 +21,15 @@ import {HostTag} from './host.js';
 import {Workspaces} from './workspaces.js';
 import {WindowTitle} from './title.js';
 import {NowPlaying} from './nowplaying.js';
+import {Stats} from './stats.js';
+import {Devices} from './devices.js';
 import {Battery} from './battery.js';
 import {LayoutOsd} from './layoutosd.js';
 import {RiceOsd} from './riceosd.js';
+import {gateIcon} from './util.js';
+
+// network icons that need no attention: strong wifi, a working cable
+const GOOD_NETWORK = /^network-(wireless-signal-(excellent|good)|wireless-connected|wired)-symbolic$/;
 
 const SEGMENTS = [
     // role, class, box, position
@@ -28,7 +37,9 @@ const SEGMENTS = [
     ['rice-workspaces', Workspaces, 'left', 1],
     ['rice-title', WindowTitle, 'left', 2],
     ['rice-nowplaying', NowPlaying, 'right', 0],
-    ['rice-battery', Battery, 'right', 1],
+    ['rice-stats', Stats, 'right', 1],
+    ['rice-devices', Devices, 'right', 2],
+    ['rice-battery', Battery, 'right', 3],
 ];
 
 export default class RiceBarExtension extends Extension {
@@ -63,10 +74,12 @@ export default class RiceBarExtension extends Extension {
         if (this._clockPad)
             clockBox.remove_child(this._clockPad);
 
-        // The battery segment replaces quick settings' battery icon. That
-        // indicator is built asynchronously at startup, so it may not exist
-        // yet when we're enabled on login.
-        this._hideBatteryIcon();
+        // notification bell (shown when there are unread ones): gone
+        this._ungates = [gateIcon(dateMenu._indicator, () => false)];
+
+        // Quick settings' indicators are built asynchronously at startup,
+        // so they may not exist yet when we're enabled on login.
+        this._quietQuickSettings();
     }
 
     disable() {
@@ -92,24 +105,34 @@ export default class RiceBarExtension extends Extension {
             this._clockPad = null;
         }
 
-        if (this._batteryRetry) {
-            GLib.source_remove(this._batteryRetry);
-            this._batteryRetry = 0;
+        if (this._quickSettingsRetry) {
+            GLib.source_remove(this._quickSettingsRetry);
+            this._quickSettingsRetry = 0;
         }
-        Main.panel.statusArea.quickSettings._system?._indicator.show();
+        this._ungates.forEach(ungate => ungate());
+        this._ungates = null;
     }
 
-    _hideBatteryIcon(attempt = 0) {
-        const system = Main.panel.statusArea.quickSettings._system;
-        if (system) {
-            system._indicator.hide();
+    _quietQuickSettings(attempt = 0) {
+        const qs = Main.panel.statusArea.quickSettings;
+        if (qs._system) {
+            this._ungates.push(
+                // the battery segment replaces it
+                gateIcon(qs._system._indicator, () => false),
+                gateIcon(qs._nightLight._indicator, () => false),
+                gateIcon(qs._volumeOutput._indicator, icon => icon.includes('muted')));
+            // no NetworkManager → no _network
+            if (qs._network) {
+                this._ungates.push(gateIcon(qs._network._primaryIndicator,
+                    icon => !GOOD_NETWORK.test(icon)));
+            }
             return;
         }
         if (attempt >= 20)
             return;
-        this._batteryRetry = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
-            this._batteryRetry = 0;
-            this._hideBatteryIcon(attempt + 1);
+        this._quickSettingsRetry = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            this._quickSettingsRetry = 0;
+            this._quietQuickSettings(attempt + 1);
             return GLib.SOURCE_REMOVE;
         });
     }

@@ -5,7 +5,9 @@
 #panel {
   font-family: "BlexMono Nerd Font", monospace;
   font-weight: normal;
-  height: 1.9em;
+  /* thinner than the old 1.9em; text size untouched (14in screen, seen
+   * from a distance) */
+  height: 1.6em;
 }
 
 /* square, flat buttons: Yaru's are pills with a 3px border */

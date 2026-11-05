@@ -9,7 +9,7 @@ import St from 'gi://St';
 
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 
-import {addPair, isCancelled} from './util.js';
+import {addPair, isCancelled, UPOWER_BUS} from './util.js';
 
 const LOW_PERCENT = 20;
 
@@ -35,7 +35,7 @@ class Battery extends PanelMenu.Button {
         [this._keyLabel, this._value] = addPair(box, 'bat');
 
         this._cancellable = new Gio.Cancellable();
-        Gio.DBusProxy.new_for_bus(Gio.BusType.SYSTEM, Gio.DBusProxyFlags.NONE,
+        Gio.DBusProxy.new_for_bus(UPOWER_BUS, Gio.DBusProxyFlags.NONE,
             null, 'org.freedesktop.UPower',
             '/org/freedesktop/UPower/devices/DisplayDevice',
             'org.freedesktop.UPower.Device', this._cancellable, (_source, res) => {

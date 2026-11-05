@@ -1,6 +1,8 @@
-// The focused window, dim, like tmux's window name: "kitty — ~/rice".
-// Empty in the overview or when nothing has focus. Not clickable, but
-// hoverable: a title cut off at MAX_CHARS shows whole underneath.
+// The focused window's title, dim, like tmux's window name, trimmed:
+// "GitHub — Zen Browser" → "GitHub" (the app's name only shows when the
+// window has no title). Empty in the overview or when nothing has focus.
+// Not clickable, but hoverable: a title cut off at MAX_CHARS shows whole
+// underneath.
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import Shell from 'gi://Shell';
@@ -11,7 +13,19 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 
 import {FullTextTooltip, truncate} from './util.js';
 
-const MAX_CHARS = 60;
+const MAX_CHARS = 40;
+
+// "Page — Zen Browser", "file - Visual Studio Code": a trailing app name
+const SEPARATOR = / [—–|-] /;
+
+function trim(title, name) {
+    const parts = title.split(SEPARATOR);
+    const last = parts.at(-1).toLowerCase();
+    const app = name.toLowerCase();
+    if (parts.length > 1 && app && (last.includes(app) || app.includes(last)))
+        return title.slice(0, title.length - parts.at(-1).length - 3);
+    return title;
+}
 
 export const WindowTitle = GObject.registerClass(
 class WindowTitle extends PanelMenu.Button {
@@ -55,13 +69,7 @@ class WindowTitle extends PanelMenu.Button {
         const app = Shell.WindowTracker.get_default().get_window_app(window);
         const name = app?.get_name() ?? '';
         const title = window.get_title() ?? '';
-        let text;
-        if (!title)
-            text = name;
-        else if (!name || title.toLowerCase().includes(name.toLowerCase()))
-            text = title;
-        else
-            text = `${name} — ${title}`;
+        const text = title ? trim(title, name) : name;
         this._label.text = truncate(text, MAX_CHARS);
         this._tooltip.text = text;
         this._tooltip.sync();
