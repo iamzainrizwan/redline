@@ -299,3 +299,12 @@
   color: #ff4444;
   font-weight: bold;
 }
+
+/* stands in for quick settings' icons while none is showing */
+.rice-qs-handle {
+  color: #666666;
+}
+
+#panel .panel-button:hover .rice-qs-handle {
+  color: #e0e0e0;
+}

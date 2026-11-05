@@ -14,7 +14,9 @@
 // notification bell, wifi only
 // when the connection is poor or down, volume only when muted. Colors are
 // palette.md.
+import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -33,6 +35,8 @@ import {gateIcon} from './util.js';
 
 // network icons that need no attention: strong wifi, a working cable
 const GOOD_NETWORK = /^network-(wireless-signal-(excellent|good)|wireless-connected|wired)-symbolic$/;
+
+const QS_HANDLE = '\uf1de'; // nf-fa-sliders
 
 const SEGMENTS = [
     // role, class, box, position
@@ -128,6 +132,28 @@ export default class RiceBarExtension extends Extension {
         this._ungates = null;
     }
 
+    // With every icon gated away, quick settings would be an empty click
+    // target; a dim glyph stands in whenever none of its icons is showing.
+    _addQuickSettingsHandle(qs) {
+        const box = qs._indicators;
+        const handle = new St.Label({
+            text: QS_HANDLE,
+            style_class: 'rice-qs-handle',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        box.add_child(handle);
+        const others = () => box.get_children().filter(c => c !== handle);
+        const sync = () => {
+            handle.visible = !others().some(c => c.visible);
+        };
+        const watched = others().map(c => [c, c.connect('notify::visible', sync)]);
+        sync();
+        this._ungates.push(() => {
+            watched.forEach(([c, id]) => c.disconnect(id));
+            handle.destroy();
+        });
+    }
+
     _quietQuickSettings(attempt = 0) {
         const qs = Main.panel.statusArea.quickSettings;
         if (qs._system) {
@@ -143,6 +169,7 @@ export default class RiceBarExtension extends Extension {
                 this._ungates.push(gateIcon(qs._network._primaryIndicator,
                     icon => !GOOD_NETWORK.test(icon)));
             }
+            this._addQuickSettingsHandle(qs);
             return;
         }
         if (attempt >= 20)
