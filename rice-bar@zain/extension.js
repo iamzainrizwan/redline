@@ -10,7 +10,8 @@
 // Only the segments are new. Quick settings and the calendar menu are
 // GNOME's own (the clock is moved from the centre to the far right); the
 // rice shell theme and stylesheet.css restyle them, and gateIcon() keeps
-// their status icons quiet: no night light or notification bell, wifi only
+// their status icons quiet: no night light, mic privacy icon or
+// notification bell, wifi only
 // when the connection is poor or down, volume only when muted. Colors are
 // palette.md.
 import GLib from 'gi://GLib';
@@ -25,7 +26,7 @@ import {NowPlaying} from './nowplaying.js';
 import {Stats} from './stats.js';
 import {Devices} from './devices.js';
 import {Battery} from './battery.js';
-import {Live, MicOff} from './live.js';
+import {Live, MicInUse, MicOff} from './live.js';
 import {LayoutOsd} from './layoutosd.js';
 import {RiceOsd} from './riceosd.js';
 import {gateIcon} from './util.js';
@@ -42,8 +43,9 @@ const SEGMENTS = [
     ['rice-stats', Stats, 'right', 1],
     ['rice-devices', Devices, 'right', 2],
     ['rice-battery', Battery, 'right', 3],
-    ['rice-live', Live, 'right', 4],
-    ['rice-micoff', MicOff, 'right', 5],
+    ['rice-micuse', MicInUse, 'right', 4],
+    ['rice-live', Live, 'right', 5],
+    ['rice-micoff', MicOff, 'right', 6],
 ];
 
 export default class RiceBarExtension extends Extension {
@@ -133,6 +135,8 @@ export default class RiceBarExtension extends Extension {
                 // the battery segment replaces it
                 gateIcon(qs._system._indicator, () => false),
                 gateIcon(qs._nightLight._indicator, () => false),
+                // the mic privacy icon: the mic pair names the apps instead
+                gateIcon(qs._volumeInput._indicator, () => false),
                 gateIcon(qs._volumeOutput._indicator, icon => icon.includes('muted')));
             // no NetworkManager → no _network
             if (qs._network) {
