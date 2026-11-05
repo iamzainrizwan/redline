@@ -3,6 +3,9 @@
 // artist only shows with a short title (<= ARTIST_TITLE_CHARS) and when it
 // all fits (chars and pixels); else just the title, cut with … if that's
 // still too long.
+// Then the time, dim: position/length ("1:30/6:07"), ticking while it
+// plays (Position is polled once a second then; MPRIS doesn't signal it);
+// just the length if the player won't say where it is.
 // Hover for a card with art, title, artist, album and a progress bar.
 // Click to play/pause, scroll to skip. Same source as cmatrix-saver's bar.
 import Clutter from 'gi://Clutter';
@@ -27,6 +30,14 @@ const ARTIST_TITLE_CHARS = 20;
 const ICON = ''; // nf-fa-music
 const ART_SIZE = 64;
 const TEXT_WIDTH = 230; // the card's text column; the title wraps at this
+
+// microseconds → "6:07", or "1:02:07" from an hour
+function clock(us) {
+    const s = Math.max(Math.floor(us / 1e6), 0);
+    const ss = `${s % 60}`.padStart(2, '0');
+    const m = Math.floor(s / 60);
+    return m >= 60 ? `${Math.floor(m / 60)}:${`${m % 60}`.padStart(2, '0')}:${ss}` : `${m}:${ss}`;
+}
 
 // The hover card: art | title / artist / album, progress bar underneath.
 // Position isn't announced by MPRIS signals, so it's polled once a second
@@ -191,8 +202,13 @@ class NowPlaying extends PanelMenu.Button {
                 return GLib.SOURCE_REMOVE;
             });
         });
+        this._time = new St.Label({
+            style_class: 'rice-np-time',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
         box.add_child(this._icon);
         box.add_child(this._label);
+        box.add_child(this._time);
         this.add_child(box);
         this._card = new TrackCard(this);
 
@@ -238,6 +254,7 @@ class NowPlaying extends PanelMenu.Button {
             this._cancellable.cancel();
             if (this._fitIdle)
                 GLib.source_remove(this._fitIdle);
+            this._stopTimeTimer();
             bus.signal_unsubscribe(this._nameWatch);
             this._players.clear();
         });
@@ -294,6 +311,8 @@ class NowPlaying extends PanelMenu.Button {
         if (!current || !title) {
             this.hide();
             this._card.clear();
+            this._stopTimeTimer();
+            this._timeProxy = null;
             return;
         }
         const artist = (metadata['xesam:artist']?.deepUnpack() ?? []).join(', ');
@@ -312,6 +331,56 @@ class NowPlaying extends PanelMenu.Button {
             this.add_style_class_name('paused');
         this.show();
         this._card.set(current.proxy, current.playing, metadata);
+        this._syncTime(current.proxy, current.playing,
+            Number(metadata['mpris:length']?.unpack() ?? 0));
+    }
+
+    _syncTime(proxy, playing, length) {
+        this._timeProxy = proxy;
+        this._timeLength = length;
+        this._pollTime();
+        if (!playing) {
+            this._stopTimeTimer();
+            return;
+        }
+        this._timeTimer ||= GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+            this._pollTime();
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    _stopTimeTimer() {
+        if (this._timeTimer)
+            GLib.source_remove(this._timeTimer);
+        this._timeTimer = 0;
+    }
+
+    _pollTime() {
+        const proxy = this._timeProxy;
+        if (!proxy)
+            return;
+        const show = position => {
+            if (proxy !== this._timeProxy)
+                return;
+            const length = this._timeLength;
+            if (position === null)
+                this._time.text = length > 0 ? clock(length) : '';
+            else
+                this._time.text = length > 0 ? `${clock(position)}/${clock(length)}` : clock(position);
+            this._time.visible = !!this._time.text;
+        };
+        proxy.get_connection().call(proxy.get_name(), MPRIS_PATH,
+            'org.freedesktop.DBus.Properties', 'Get',
+            new GLib.Variant('(ss)', [PLAYER_IFACE, 'Position']),
+            new GLib.VariantType('(v)'), Gio.DBusCallFlags.NONE, 1000, this._cancellable,
+            (conn, res) => {
+                try {
+                    show(Number(conn.call_finish(res).deepUnpack()[0].unpack()));
+                } catch (e) {
+                    if (!isCancelled(e))
+                        show(null); // player doesn't report position
+                }
+            });
     }
 
     _call(method) {

@@ -136,6 +136,11 @@
 /* now playing */
 /* 16px: the music glyph overhangs its advance by ~8px, so 8px left the
  * icon touching the text */
+.rice-np-time {
+  color: #666666;
+  padding-left: 12px;
+}
+
 .rice-np-icon {
   color: #cc2222;
   padding-right: 16px;
@@ -190,7 +195,8 @@
 }
 
 #panel .panel-button.rice-nowplaying.paused,
-#panel .panel-button.rice-nowplaying.paused .rice-np-icon {
+#panel .panel-button.rice-nowplaying.paused .rice-np-icon,
+#panel .panel-button.rice-nowplaying.paused .rice-np-time {
   color: #444444;
 }
 
