@@ -1,7 +1,7 @@
 // rice bar: turns GNOME's top bar into something like the tmux status line.
 //
 //   left:  [host] 1 [2] 3  focused window
-//   right: ♪ now playing  cpu 12% mem 41%  bat 87% 3:12  [quick settings]  clock
+//   right: ♪ now playing  bat 87% 3:12  [quick settings]  clock
 //
 // Changing keyboard layout (US/UK) pops GNOME's OSD box with its name, and
 // scripts can pop it too with bin/rice-osd (riceosd.js).
@@ -18,7 +18,6 @@ import {HostTag} from './host.js';
 import {Workspaces} from './workspaces.js';
 import {WindowTitle} from './title.js';
 import {NowPlaying} from './nowplaying.js';
-import {Stats} from './stats.js';
 import {Battery} from './battery.js';
 import {LayoutOsd} from './layoutosd.js';
 import {RiceOsd} from './riceosd.js';
@@ -29,8 +28,7 @@ const SEGMENTS = [
     ['rice-workspaces', Workspaces, 'left', 1],
     ['rice-title', WindowTitle, 'left', 2],
     ['rice-nowplaying', NowPlaying, 'right', 0],
-    ['rice-stats', Stats, 'right', 1],
-    ['rice-battery', Battery, 'right', 2],
+    ['rice-battery', Battery, 'right', 1],
 ];
 
 export default class RiceBarExtension extends Extension {

@@ -1,6 +1,7 @@
 // bat 87% 3:12 — UPower's display device. "bat" on battery (time to empty),
-// "chg" while charging (time to full), "ac" when full on mains. Red-bright
-// on battery at or below LOW_PERCENT. Hidden on machines with no battery.
+// "chg" while charging (time to full). Hidden on mains when not charging
+// (full, or held by a charge threshold), and on machines with no battery.
+// Red-bright on battery at or below LOW_PERCENT.
 // Replaces quick settings' battery icon (extension.js hides it).
 import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
@@ -8,8 +9,7 @@ import St from 'gi://St';
 
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 
-import {addPair} from './stats.js';
-import {isCancelled} from './util.js';
+import {addPair, isCancelled} from './util.js';
 
 const LOW_PERCENT = 20;
 
@@ -64,17 +64,13 @@ class Battery extends PanelMenu.Button {
         const percent = Math.round(this._get('Percentage') ?? 0);
         const state = this._get('State');
         const onBattery = state === DISCHARGING || state === PENDING_DISCHARGE;
-
-        let key = 'ac';
-        let seconds = 0;
-        if (onBattery) {
-            key = 'bat';
-            seconds = this._get('TimeToEmpty') ?? 0;
-        } else if (state === CHARGING) {
-            key = 'chg';
-            seconds = this._get('TimeToFull') ?? 0;
+        if (!onBattery && state !== CHARGING) {
+            this.hide();
+            return;
         }
-        this._keyLabel.text = key;
+
+        const seconds = (onBattery ? this._get('TimeToEmpty') : this._get('TimeToFull')) ?? 0;
+        this._keyLabel.text = onBattery ? 'bat' : 'chg';
         this._value.text = seconds > 0 ? `${percent}% ${hhmm(seconds)}` : `${percent}%`;
         if (onBattery && percent <= LOW_PERCENT)
             this._value.add_style_class_name('hot');

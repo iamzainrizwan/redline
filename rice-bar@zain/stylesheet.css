@@ -192,7 +192,7 @@
   color: #444444;
 }
 
-/* cpu 12%  mem 41%  bat 87% 3:12 — one narrow gap inside a pair, one wide
+/* bat 87% 3:12 — one narrow gap inside a pair, one wide
  * gap between pairs. The wide gap matches the space between two panel
  * buttons (8px padding each side), so pairs in one segment and pairs in
  * the next segment sit the same distance apart. */

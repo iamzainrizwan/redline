@@ -1,3 +1,4 @@
+import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
@@ -55,4 +56,20 @@ export function placeUnder(button, actor) {
 
 export function isCancelled(e) {
     return e instanceof GLib.Error && e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED);
+}
+
+// key label (dim) + value label (bright); returns both
+export function addPair(box, key) {
+    const keyLabel = new St.Label({
+        text: key,
+        style_class: 'rice-key',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    box.add_child(keyLabel);
+    const value = new St.Label({
+        style_class: 'rice-val',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    box.add_child(value);
+    return [keyLabel, value];
 }
