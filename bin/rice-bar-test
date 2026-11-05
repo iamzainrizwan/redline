@@ -16,7 +16,7 @@
 #                            → same, with that item's menu open
 #   RICE_BAR_TEST_TRACK='a long title' rice-bar-test
 #                            → the fake player's track title (with
-#                              HOVER=rice-nowplaying: the full-text tooltip)
+#                              HOVER=rice-nowplaying: the track card)
 #
 # The test shell gets its own session bus and its own XDG config/data/cache
 # dirs, so its dconf writes land in a scratch database. That isolation only
@@ -100,6 +100,12 @@ export default class extends Extension {
             'focus: ' + global.display.focus_window?.get_title() + \` (overview was \${overviewAtStart ? 'open' : 'closed'}, now \${Main.overview.visible ? 'open' : 'closed'})\`,
             'title label: ' + bar['rice-title']?._label.text,
             'workspaces: ' + bar['rice-workspaces']?._box.get_children().map(b => b.get_style_class_name()).join(' / '),
+            // x+width of each right-side item and the clock's insides, for
+            // spotting dead gaps between segments
+            'right geometry: ' + Main.panel._rightBox.get_children().filter(c => c.visible)
+                .map(c => \`\${Object.keys(bar).find(r => bar[r]?.container === c) ?? c.constructor.name}@\${Math.round(c.get_transformed_position()[0])}+\${Math.round(c.width)}\`).join(' '),
+            'clock geometry: ' + [bar.dateMenu, ...clockBox.get_children(), bar.quickSettings, ...bar.quickSettings._indicators.get_children()]
+                .filter(c => c.visible).map(c => \`\${c.constructor.name}@\${Math.round(c.get_transformed_position()[0])}+\${Math.round(c.width)}\`).join(' '),
             'clock box: ' + clockBox.get_children().map(c => \`\${c.constructor.name}\${c.visible ? '' : '(hidden)'}\`).join(' | '),
         ].join('\n') + '\n');
 
@@ -203,14 +209,20 @@ from gi.repository import Gio, GLib
 XML = '''<node><interface name="org.mpris.MediaPlayer2.Player">
 <property name="PlaybackStatus" type="s" access="read"/>
 <property name="Metadata" type="a{sv}" access="read"/>
+<property name="Position" type="x" access="read"/>
 <method name="PlayPause"/><method name="Next"/><method name="Previous"/>
 </interface></node>'''
 TITLE = os.environ.get('RICE_BAR_TEST_TRACK') or 'Windowlicker'
 def get_prop(conn, sender, path, iface, prop):
     if prop == 'PlaybackStatus':
         return GLib.Variant('s', 'Playing')
+    if prop == 'Position':
+        return GLib.Variant('x', 90_000_000)  # 1:30 of 6:07
     return GLib.Variant('a{sv}', {'xesam:title': GLib.Variant('s', TITLE),
-                                  'xesam:artist': GLib.Variant('as', ['Aphex Twin'])})
+                                  'xesam:artist': GLib.Variant('as', ['Aphex Twin']),
+                                  'xesam:album': GLib.Variant('s', 'Windowlicker EP'),
+                                  'mpris:length': GLib.Variant('x', 367_000_000),
+                                  'mpris:artUrl': GLib.Variant('s', 'file:///usr/share/icons/hicolor/256x256/apps/firefox.png')})
 def on_bus(conn, name):
     conn.register_object('/org/mpris/MediaPlayer2', Gio.DBusNodeInfo.new_for_xml(XML).interfaces[0],
                          lambda *a: a[-1].return_value(None), get_prop, None)

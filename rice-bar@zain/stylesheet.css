@@ -59,6 +59,9 @@
   border: 0;
   border-radius: 0;
   box-shadow: none;
+  /* Yaru pads the label for its pill; on top of the button's own padding
+   * that left a wide gap before the clock (and after it, at the edge) */
+  padding: 0;
 }
 
 #panel .clock {
@@ -134,6 +137,54 @@
 .rice-np-icon {
   color: #cc2222;
   padding-right: 16px;
+}
+
+/* hover card: art | title / artist / album, progress bar along the bottom */
+.rice-np-card {
+  font-family: "BlexMono Nerd Font", monospace;
+  background-color: #0a0a0a;
+  border: 1px solid #333333;
+  padding: 10px;
+  spacing: 10px;
+}
+
+.rice-np-card-row {
+  spacing: 12px;
+}
+
+.rice-np-artbox {
+  background-color: #1a1a1a;
+}
+
+.rice-np-noart {
+  color: #444444;
+  font-size: 24px;
+}
+
+.rice-np-title {
+  color: #e0e0e0;
+  font-weight: bold;
+}
+
+.rice-np-artist {
+  color: #e0e0e0;
+}
+
+.rice-np-album {
+  color: #666666;
+}
+
+.rice-np-trough {
+  background-color: #222222;
+  height: 3px;
+}
+
+.rice-np-fill {
+  background-color: #cc2222;
+}
+
+.rice-np-card.paused .rice-np-fill {
+  background-color: #444444;
 }
 
 #panel .panel-button.rice-nowplaying.paused,

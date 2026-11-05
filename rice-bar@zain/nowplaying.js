@@ -1,21 +1,167 @@
 //  artist – title — whatever MPRIS player is playing (Spotify, a browser
-// tab, mpv...), else the first paused one; hidden when there's none. Click
-// to play/pause, scroll to skip. Same source as cmatrix-saver's status bar.
+// tab, mpv...), else the first paused one; hidden when there's none. Too
+// long for the bar → just the title, cut with … if that's still too long.
+// Hover for a card with art, title, artist, album and a progress bar.
+// Click to play/pause, scroll to skip. Same source as cmatrix-saver's bar.
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
+import Pango from 'gi://Pango';
+import Graphene from 'gi://Graphene';
 import St from 'gi://St';
 
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 
-import {FullTextTooltip, isCancelled, truncate} from './util.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+import {isCancelled, placeUnder, truncate} from './util.js';
 
 const MPRIS_PREFIX = 'org.mpris.MediaPlayer2.';
 const MPRIS_PATH = '/org/mpris/MediaPlayer2';
 const PLAYER_IFACE = 'org.mpris.MediaPlayer2.Player';
 const MAX_CHARS = 40;
 const ICON = ''; // nf-fa-music
+const ART_SIZE = 64;
+const TEXT_WIDTH = 230; // the card's text column; the title wraps at this
+
+// The hover card: art | title / artist / album, progress bar underneath.
+// Position isn't announced by MPRIS signals, so it's polled once a second
+// while the card is up.
+class TrackCard {
+    constructor(button) {
+        this._button = button;
+        this._proxy = null;
+        this._length = 0;
+        this._timer = 0;
+        this._artUrl = null;
+
+        this.actor = new St.BoxLayout({
+            style_class: 'rice-np-card', vertical: true, visible: false,
+        });
+        const row = new St.BoxLayout({style_class: 'rice-np-card-row'});
+        this._art = new St.Icon({style_class: 'rice-np-art', icon_size: ART_SIZE});
+        this._noArt = new St.Label({
+            text: ICON, style_class: 'rice-np-noart',
+            x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER,
+        });
+        this._artBox = new St.Bin({
+            style_class: 'rice-np-artbox', width: ART_SIZE, height: ART_SIZE,
+            y_align: Clutter.ActorAlign.START,
+        });
+        const text = new St.BoxLayout({
+            vertical: true, width: TEXT_WIDTH,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this._title = new St.Label({style_class: 'rice-np-title'});
+        this._artist = new St.Label({style_class: 'rice-np-artist'});
+        this._album = new St.Label({style_class: 'rice-np-album'});
+        // long titles wrap in the card rather than getting cut again
+        this._title.clutter_text.line_wrap = true;
+        this._title.width = TEXT_WIDTH;
+        this._title.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
+        [this._title, this._artist, this._album].forEach(l => text.add_child(l));
+        row.add_child(this._artBox);
+        row.add_child(text);
+        this._trough = new St.Widget({
+            style_class: 'rice-np-trough', x_expand: true,
+            layout_manager: new Clutter.BinLayout(),
+        });
+        this._fill = new St.Widget({
+            style_class: 'rice-np-fill', x_expand: true, y_expand: true,
+            pivot_point: new Graphene.Point({x: 0, y: 0}), scale_x: 0,
+        });
+        this._trough.add_child(this._fill);
+        this.actor.add_child(row);
+        this.actor.add_child(this._trough);
+        Main.layoutManager.addChrome(this.actor, {affectsInputRegion: false});
+
+        button.connectObject(
+            'notify::hover', () => this.sync(),
+            'destroy', () => this._destroy(),
+            this);
+    }
+
+    set(proxy, playing, metadata) {
+        const str = key => metadata[key]?.unpack() ?? '';
+        this._proxy = proxy;
+        this._title.text = str('xesam:title');
+        // the boxes measure a wrapped label as one line; pin its real height
+        this._title.height = -1;
+        this._title.height = this._title.get_preferred_height(TEXT_WIDTH)[1];
+        this._artist.text = (metadata['xesam:artist']?.deepUnpack() ?? []).join(', ');
+        this._artist.visible = !!this._artist.text;
+        this._album.text = str('xesam:album');
+        this._album.visible = !!this._album.text;
+        this._length = Number(metadata['mpris:length']?.unpack() ?? 0);
+        const art = str('mpris:artUrl');
+        if (art !== this._artUrl) {
+            this._artUrl = art;
+            // https art (Spotify) loads through gvfs, like GNOME's own media widget
+            this._art.gicon = art ? new Gio.FileIcon({file: Gio.File.new_for_uri(art)}) : null;
+            this._artBox.set_child(art ? this._art : this._noArt);
+        }
+        if (playing)
+            this.actor.remove_style_class_name('paused');
+        else
+            this.actor.add_style_class_name('paused');
+        this.sync();
+    }
+
+    clear() {
+        this._proxy = null;
+        this.sync();
+    }
+
+    sync() {
+        if (!this._button.hover || !this._proxy || !this._button.visible) {
+            this.actor.hide();
+            this._stopTimer();
+            return;
+        }
+        placeUnder(this._button, this.actor);
+        this.actor.show();
+        this._poll();
+        this._timer ||= GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+            this._poll();
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    _poll() {
+        const proxy = this._proxy;
+        this._trough.visible = this._length > 0;
+        if (!proxy || this._length <= 0)
+            return;
+        proxy.get_connection().call(proxy.get_name(), MPRIS_PATH,
+            'org.freedesktop.DBus.Properties', 'Get',
+            new GLib.Variant('(ss)', [PLAYER_IFACE, 'Position']),
+            new GLib.VariantType('(v)'), Gio.DBusCallFlags.NONE, 1000, null,
+            (conn, res) => {
+                let position;
+                try {
+                    position = Number(conn.call_finish(res).deepUnpack()[0].unpack());
+                } catch {
+                    return; // player doesn't report position: leave the bar
+                }
+                if (proxy === this._proxy && this._length > 0)
+                    this._fill.scale_x = Math.min(Math.max(position / this._length, 0), 1);
+            });
+    }
+
+    _stopTimer() {
+        if (this._timer)
+            GLib.source_remove(this._timer);
+        this._timer = 0;
+    }
+
+    _destroy() {
+        this._stopTimer();
+        this._proxy = null;
+        Main.layoutManager.removeChrome(this.actor);
+        this.actor.destroy();
+    }
+}
 
 export const NowPlaying = GObject.registerClass(
 class NowPlaying extends PanelMenu.Button {
@@ -32,7 +178,7 @@ class NowPlaying extends PanelMenu.Button {
         box.add_child(this._icon);
         box.add_child(this._label);
         this.add_child(box);
-        this._tooltip = new FullTextTooltip(this, this._label);
+        this._card = new TrackCard(this);
 
         this._players = new Map(); // bus name → Gio.DBusProxy
         this._wanted = new Set(); // bus names currently on the bus
@@ -129,20 +275,18 @@ class NowPlaying extends PanelMenu.Button {
         const title = metadata['xesam:title']?.unpack() ?? '';
         if (!current || !title) {
             this.hide();
-            this._tooltip.text = '';
-            this._tooltip.sync();
+            this._card.clear();
             return;
         }
         const artist = (metadata['xesam:artist']?.deepUnpack() ?? []).join(', ');
         const text = artist ? `${artist} – ${title}` : title;
-        this._label.text = truncate(text, MAX_CHARS);
-        this._tooltip.text = text;
-        this._tooltip.sync();
+        this._label.text = text.length <= MAX_CHARS ? text : truncate(title, MAX_CHARS);
         if (current.playing)
             this.remove_style_class_name('paused');
         else
             this.add_style_class_name('paused');
         this.show();
+        this._card.set(current.proxy, current.playing, metadata);
     }
 
     _call(method) {

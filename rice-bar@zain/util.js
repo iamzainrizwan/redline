@@ -31,14 +31,7 @@ export class FullTextTooltip {
             return;
         }
         this._tooltip.text = this.text;
-        const [x, y] = this._button.get_transformed_position();
-        const [width, height] = this._button.get_transformed_size();
-        const [, tipWidth] = this._tooltip.get_preferred_width(-1);
-        const monitor = Main.layoutManager.findMonitorForActor(this._button);
-        const tipX = Math.min(
-            Math.max(x + (width - tipWidth) / 2, monitor.x),
-            monitor.x + monitor.width - tipWidth);
-        this._tooltip.set_position(Math.floor(tipX), Math.floor(y + height));
+        placeUnder(this._button, this._tooltip);
         this._tooltip.show();
     }
 
@@ -46,6 +39,18 @@ export class FullTextTooltip {
         Main.layoutManager.removeChrome(this._tooltip);
         this._tooltip.destroy();
     }
+}
+
+// Centre a chrome actor under a panel button, kept on its monitor.
+export function placeUnder(button, actor) {
+    const [x, y] = button.get_transformed_position();
+    const [width, height] = button.get_transformed_size();
+    const [, tipWidth] = actor.get_preferred_width(-1);
+    const monitor = Main.layoutManager.findMonitorForActor(button);
+    const tipX = Math.min(
+        Math.max(x + (width - tipWidth) / 2, monitor.x),
+        monitor.x + monitor.width - tipWidth);
+    actor.set_position(Math.floor(tipX), Math.floor(y + height));
 }
 
 export function isCancelled(e) {
