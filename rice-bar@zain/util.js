@@ -81,8 +81,9 @@ export const UPOWER_BUS = GLib.getenv('RICE_BAR_UPOWER_BUS') === 'session'
 
 // Keeps a GNOME status icon hidden unless show(iconName) says otherwise,
 // on top of GNOME's own visibility (remembered, so a hidden icon reappears
-// when GNOME and show() both want it). Returns an undo for disable().
-export function gateIcon(icon, show) {
+// when GNOME and show() both want it; onWanted(wanted) hears each change of
+// GNOME's mind). Returns an undo for disable().
+export function gateIcon(icon, show, onWanted = null) {
     let wanted = icon.visible;
     let ours = false;
     const apply = () => {
@@ -98,10 +99,13 @@ export function gateIcon(icon, show) {
             if (ours)
                 return;
             wanted = icon.visible;
+            onWanted?.(wanted);
             apply();
         }),
-        icon.connect('notify::icon-name', apply),
     ];
+    if (icon instanceof St.Icon)
+        ids.push(icon.connect('notify::icon-name', apply));
+    onWanted?.(wanted);
     apply();
     return () => {
         ids.forEach(id => icon.disconnect(id));

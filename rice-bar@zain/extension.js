@@ -1,7 +1,8 @@
 // rice bar: turns GNOME's top bar into something like the tmux status line.
 //
-//   left:  [host] 1 [2] 3  focused window
-//   right: ♪ now playing  [cpu/mem alerts]  hp 80%  bat 87% 3:12  [quick settings]  clock
+//   left:  [helm #12 14:30] 1 [2] 3  focused window
+//   right: ♪ now playing  [cpu/mem alerts]  hp 80%  bat 87% 3:12  [live] [mic off]
+//          [quick settings]  clock
 //
 // Changing keyboard layout (US/UK) pops GNOME's OSD box with its name, and
 // scripts can pop it too with bin/rice-osd (riceosd.js).
@@ -17,13 +18,14 @@ import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {HostTag} from './host.js';
+import {Helm} from './helm.js';
 import {Workspaces} from './workspaces.js';
 import {WindowTitle} from './title.js';
 import {NowPlaying} from './nowplaying.js';
 import {Stats} from './stats.js';
 import {Devices} from './devices.js';
 import {Battery} from './battery.js';
+import {Live, MicOff} from './live.js';
 import {LayoutOsd} from './layoutosd.js';
 import {RiceOsd} from './riceosd.js';
 import {gateIcon} from './util.js';
@@ -33,13 +35,15 @@ const GOOD_NETWORK = /^network-(wireless-signal-(excellent|good)|wireless-connec
 
 const SEGMENTS = [
     // role, class, box, position
-    ['rice-host', HostTag, 'left', 0],
+    ['rice-helm', Helm, 'left', 0],
     ['rice-workspaces', Workspaces, 'left', 1],
     ['rice-title', WindowTitle, 'left', 2],
     ['rice-nowplaying', NowPlaying, 'right', 0],
     ['rice-stats', Stats, 'right', 1],
     ['rice-devices', Devices, 'right', 2],
     ['rice-battery', Battery, 'right', 3],
+    ['rice-live', Live, 'right', 4],
+    ['rice-micoff', MicOff, 'right', 5],
 ];
 
 export default class RiceBarExtension extends Extension {
@@ -49,7 +53,7 @@ export default class RiceBarExtension extends Extension {
         this._layoutOsd = new LayoutOsd();
         this._riceOsd = new RiceOsd();
 
-        // the host tag opens the overview instead
+        // the helm tag opens the overview instead
         Main.panel.statusArea.activities.container.hide();
 
         // clock: centre → far right, after quick settings, like tmux's %H:%M
@@ -76,6 +80,15 @@ export default class RiceBarExtension extends Extension {
 
         // notification bell (shown when there are unread ones): gone
         this._ungates = [gateIcon(dateMenu._indicator, () => false)];
+
+        // GNOME's sharing/recording icons → the red live tag (which also
+        // stops them on click)
+        const live = Main.panel.statusArea['rice-live'];
+        const {screenSharing, screenRecording} = Main.panel.statusArea;
+        if (screenSharing)
+            this._ungates.push(gateIcon(screenSharing, () => false, on => live.setSharing(on)));
+        if (screenRecording)
+            this._ungates.push(gateIcon(screenRecording, () => false, on => live.setRecording(on)));
 
         // Quick settings' indicators are built asynchronously at startup,
         // so they may not exist yet when we're enabled on login.

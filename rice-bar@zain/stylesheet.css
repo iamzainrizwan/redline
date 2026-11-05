@@ -71,18 +71,88 @@
   font-weight: bold;
 }
 
-/* [valhalla] */
-#panel .panel-button.rice-host {
-  background-color: #cc2222;
-  color: #000000;
+/* [helm #12 14:30] — a dark block; red (like tmux's session name) once a
+ * floor block is overdue. Falls back to the hostname. */
+#panel .panel-button.rice-helm {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
   font-weight: bold;
   -natural-hpadding: 10px;
-  /* the red block's padding is inside it; this is the gap after it, so the
+  /* the block's padding is inside it; this is the gap after it, so the
    * next segment sits as far away as segments do from each other */
   margin-right: 8px;
 }
 
-#panel .panel-button.rice-host:hover {
+#panel .panel-button.rice-helm:hover {
+  background-color: #333333;
+}
+
+#panel .panel-button.rice-helm.overdue {
+  background-color: #cc2222;
+  color: #000000;
+}
+
+#panel .panel-button.rice-helm.overdue:hover {
+  background-color: #e03333;
+}
+
+/* today's unticked blocks, under the helm tag on hover */
+.rice-helm-card {
+  font-family: "BlexMono Nerd Font", monospace;
+  background-color: #0a0a0a;
+  border: 1px solid #333333;
+  padding: 10px;
+  spacing: 4px;
+}
+
+.rice-helm-head {
+  color: #666666;
+  padding-bottom: 4px;
+}
+
+.rice-helm-row {
+  spacing: 12px;
+  color: #e0e0e0;
+}
+
+.rice-helm-row.overdue {
+  color: #ff4444;
+}
+
+.rice-helm-row.stretch {
+  color: #666666;
+}
+
+.rice-helm-at {
+  width: 5em;
+}
+
+.rice-helm-id {
+  width: 4em;
+}
+
+.rice-helm-project {
+  width: 10em;
+  color: #666666;
+}
+
+.rice-helm-row.overdue .rice-helm-project {
+  color: #cc2222;
+}
+
+.rice-helm-row.stretch .rice-helm-project {
+  color: #444444;
+}
+
+/* live / rec 0:42 / mic off — loud red blocks */
+#panel .panel-button.rice-alert {
+  background-color: #cc2222;
+  color: #000000;
+  font-weight: bold;
+  margin-left: 8px;
+}
+
+#panel .panel-button.rice-alert:hover {
   background-color: #e03333;
 }
 

@@ -21,7 +21,8 @@
 #                            → a fake UPower on the test bus: on battery
 #                              (64%, 3:12 left), headphones at 80% and a
 #                              mouse at 15%; also forces the cpu/mem
-#                              alerts on (threshold 0)
+#                              alerts on (threshold 0) and the live /
+#                              mic off tags
 #
 # The test shell gets its own session bus and its own XDG config/data/cache
 # dirs, so its dconf writes land in a scratch database. That isolation only
@@ -126,6 +127,10 @@ export default class extends Extension {
             Main.screenShield.lock(false);
         if (show)
             await pause(2500);
+        if (GLib.getenv('RICE_BAR_TEST_UPOWER')) {
+            bar['rice-live']?.setSharing(true);
+            bar['rice-micoff'] && (bar['rice-micoff'].text = 'mic off');
+        }
         const hover = GLib.getenv('RICE_BAR_TEST_HOVER');
         if (hover) {
             bar[hover]?.add_style_pseudo_class('hover');
