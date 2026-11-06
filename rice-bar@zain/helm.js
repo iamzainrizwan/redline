@@ -1,4 +1,4 @@
-// [helm #12 14:30] — the block at the far left, where tmux keeps its
+// [helm 14:30 leetcode] — the block at the far left, where tmux keeps its
 // session name: what to do next, from `helm missed`. Red when a floor
 // block is missed (unticked and its time has started, or untimed):
 // it names the first, which helm's own ranking (uni > cybersoc > leetcode
@@ -85,7 +85,7 @@ class HelmCard {
         this.actor.destroy_all_children();
         this.actor.add_child(new St.Label({text: header, style_class: 'rice-helm-head'}));
         let tier = null;
-        for (const {at, id, project, task, kind, tier: rowTier} of rows) {
+        for (const {at, project, task, kind, tier: rowTier} of rows) {
             if (rowTier !== tier) {
                 tier = rowTier;
                 this.actor.add_child(new St.Label({text: tier, style_class: 'rice-helm-tier'}));
@@ -97,7 +97,6 @@ class HelmCard {
                 row.add_child(label);
             };
             cell(at ?? '--:--', 'rice-helm-at');
-            cell(`#${id}`, 'rice-helm-id');
             cell(project, 'rice-helm-project');
             cell(task.length > TASK_CHARS ? `${task.slice(0, TASK_CHARS - 1)}…` : task,
                 'rice-helm-task');
@@ -199,7 +198,7 @@ class Helm extends PanelMenu.Button {
             upcoming.reduce((a, b) => (a && a.at <= b.at ? a : b), null);
 
         if (next)
-            this._label.text = next.at ? `helm #${next.block_id} ${next.at}` : `helm #${next.block_id}`;
+            this._label.text = ['helm', next.at, next.project].filter(Boolean).join(' ');
         else
             this._label.text = `helm ${TICK}`;
         // red for missed floor only: stretch is optional
@@ -214,7 +213,7 @@ class Helm extends PanelMenu.Button {
             ? `missed ${missed.length} · ${hours(sum(missed))}h (${hours(sum(missed, b => b.floor))}h floor)`
             : `nothing missed  ${TICK}`;
         const rows = data.blocks.map(b => ({
-            at: b.at, id: b.block_id, project: b.project, tier: b.tier,
+            at: b.at, project: b.project, tier: b.tier,
             task: b.label ?? b.task,
             kind: !b.floor ? 'stretch' : started(b) ? 'overdue' : 'floor',
         }));

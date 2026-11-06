@@ -1,6 +1,6 @@
 // rice bar: turns GNOME's top bar into something like the tmux status line.
 //
-//   left:  [helm #12 14:30] 1 [2] 3  focused window
+//   left:  [helm 14:30 leetcode] 1 [2] 3  focused window
 //   right: ♪ now playing  [cpu/mem alerts]  hp 80%  bat 87% 3:12  [live] [mic off]
 //          [quick settings]  clock
 //

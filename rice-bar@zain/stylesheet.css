@@ -71,7 +71,7 @@
   font-weight: bold;
 }
 
-/* [helm #12 14:30] — a dark block; red (like tmux's session name) once a
+/* [helm 14:30 leetcode] — a dark block; red (like tmux's session name) once a
  * floor block is overdue. Falls back to the hostname. */
 #panel .panel-button.rice-helm {
   background-color: #1a1a1a;
@@ -130,10 +130,6 @@
 
 .rice-helm-at {
   width: 5em;
-}
-
-.rice-helm-id {
-  width: 4em;
 }
 
 .rice-helm-project {
