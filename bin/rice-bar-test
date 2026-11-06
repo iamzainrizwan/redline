@@ -22,7 +22,9 @@
 #                              (64%, 3:12 left), headphones at 80% and a
 #                              mouse at 15%; also forces the cpu/mem
 #                              alerts on (threshold 0) and the live /
-#                              mic off tags
+#                              mic off tags. The headphones are Nothing
+#                              buds, so with HOVER=rice-devices the buds
+#                              card shows (a fake bin/buds, in nc mid)
 #
 # The test shell gets its own session bus and its own XDG config/data/cache
 # dirs, so its dconf writes land in a scratch database. That isolation only
@@ -267,7 +269,7 @@ DEVICES = {
                           TimeToFull=('x', 0), Model=('s', '')),
     'headset_dev_00': dict(Type=('u', 19), PowerSupply=('b', False), IsPresent=('b', True),
                            Percentage=('d', 80.0), State=('u', 2), TimeToEmpty=('x', 0),
-                           TimeToFull=('x', 0), Model=('s', 'WH-1000XM4')),
+                           TimeToFull=('x', 0), Model=('s', 'Nothing Ear (a)')),
     'mouse_dev_01': dict(Type=('u', 5), PowerSupply=('b', False), IsPresent=('b', True),
                          Percentage=('d', 15.0), State=('u', 2), TimeToEmpty=('x', 0),
                          TimeToFull=('x', 0), Model=('s', 'M602')),
@@ -284,6 +286,15 @@ def on_bus(conn, name):
 Gio.bus_own_name(Gio.BusType.SESSION, 'org.freedesktop.UPower', 0, on_bus, None, None)
 GLib.MainLoop().run()
 EOF
+
+# bin/buds stand-in for the buds card: --json [mode], starting in nc mid
+cat > "$T/fake-buds" <<'EOF'
+#!/usr/bin/env bash
+mode=mid
+for a; do [[ $a != --json ]] && mode=$a; done
+printf '{"name": "Nothing Ear (a)", "mac": "00:00:00:00:00:00", "mode": "%s", "battery": [{"part": "L", "percent": 80, "charging": false}, {"part": "R", "percent": 75, "charging": false}, {"part": "case", "percent": 40, "charging": true}]}\n' "$mode"
+EOF
+chmod +x "$T/fake-buds"
 
 cat > "$T/window.py" <<'EOF'
 import gi
@@ -318,7 +329,7 @@ export RICE_OSD_FILE=$T/rice-osd  # keep rice-osd off the real session's file
 python3 -I $T/fake-player.py &
 if [[ -n "${RICE_BAR_TEST_UPOWER:-}" ]]; then
   python3 -I $T/fake-upower.py &
-  export RICE_BAR_UPOWER_BUS=session RICE_BAR_HOT_PERCENT=0
+  export RICE_BAR_UPOWER_BUS=session RICE_BAR_HOT_PERCENT=0 RICE_BAR_BUDS=$T/fake-buds
 fi
 gnome-shell --headless --wayland --virtual-monitor 1920x1080 --mode=ubuntu > $T/out/shell.log 2>&1 &
 shell=\$!

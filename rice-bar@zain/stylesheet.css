@@ -309,3 +309,55 @@
 #panel .panel-button:hover .rice-qs-handle {
   color: #e0e0e0;
 }
+
+/* noise modes of Nothing / CMF buds, under the hp % on hover (buds.js) */
+.rice-buds-card {
+  font-family: "BlexMono Nerd Font", monospace;
+  background-color: #0a0a0a;
+  border: 1px solid #333333;
+  padding: 10px;
+  spacing: 6px;
+}
+
+.rice-buds-head {
+  spacing: 24px;
+  padding-bottom: 2px;
+}
+
+.rice-buds-name {
+  color: #e0e0e0;
+}
+
+.rice-buds-battery {
+  color: #666666;
+}
+
+.rice-buds-battery:busy {
+  color: #444444;
+}
+
+.rice-buds-row {
+  spacing: 4px;
+}
+
+.rice-buds-key {
+  color: #444444;
+  padding: 2px 6px 2px 0;
+}
+
+.rice-buds-mode {
+  color: #666666;
+  padding: 2px 8px;
+  border: 1px solid #222222;
+}
+
+.rice-buds-mode:hover {
+  color: #e0e0e0;
+  background-color: #1a1a1a;
+}
+
+.rice-buds-mode:checked {
+  color: #ffffff;
+  background-color: #cc2222;
+  border-color: #cc2222;
+}

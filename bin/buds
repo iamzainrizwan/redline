@@ -5,13 +5,14 @@
   buds nc|trans|off         noise cancelling (high) / transparency / off
   buds high|mid|low|adaptive  noise cancelling strength
   buds cycle                nc -> trans -> off -> nc (like the stem gesture)
+  buds --json [mode]        same, as JSON (the rice bar's buds card reads it)
 
 Talks Nothing's "NT LINK" RFCOMM service (UUID aeac4a03-...), the one the
 Nothing X app uses: frames are 55 60 01 <cmd le16> <len le16> <seq> <payload>
 <crc16-modbus le>. Checked on the Ear (a); the CMF Buds 2a use the same
 service. The channel is looked up with sdptool once per device and cached.
 """
-import os, re, socket, subprocess, sys, time
+import json, os, re, socket, subprocess, sys, time
 
 NT_LINK = "aeac4a03-dff5-498f-843a-34487cf133eb"
 MODES = {"high": 0x01, "mid": 0x02, "low": 0x03, "adaptive": 0x04,
@@ -127,18 +128,18 @@ class Link:
         self.ask(SET_ANC, bytes([0x01, MODES[name], 0x00]))
 
     def battery(self):
+        """[(part, percent, charging)]; a bud in the case drops out."""
         pl = self.ask(GET_BATTERY)
         parts = {0x02: "L", 0x03: "R", 0x04: "case"}
-        out = []
-        for k in range(pl[0] if pl else 0):
-            dev, lvl = pl[1 + 2 * k], pl[2 + 2 * k]
-            out.append(f"{parts.get(dev, hex(dev))} {lvl & 0x7F}%"
-                       + ("+" if lvl & 0x80 else ""))
-        return "  ".join(out)
+        return [(parts.get(pl[1 + 2 * k], hex(pl[1 + 2 * k])),
+                 pl[2 + 2 * k] & 0x7F, bool(pl[2 + 2 * k] & 0x80))
+                for k in range(pl[0] if pl else 0)]
 
 
 def main():
     args = sys.argv[1:]
+    as_json = "--json" in args
+    args = [a for a in args if a != "--json"]
     if args and args[0] in ("-h", "--help"):
         print(__doc__.strip())
         return
@@ -154,7 +155,15 @@ def main():
     if want:
         link.set(want)
     m = link.mode()
-    print(f"{name}: {NAMES.get(m, f'mode {m:#x}')}  {link.battery()}")
+    bat = link.battery()
+    if as_json:
+        print(json.dumps({"name": name, "mac": mac,
+                          "mode": {v: k for k, v in MODES.items()}.get(m, m),
+                          "battery": [{"part": p, "percent": n, "charging": c}
+                                      for p, n, c in bat]}))
+    else:
+        print(f"{name}: {NAMES.get(m, f'mode {m:#x}')}  " + "  ".join(
+            f"{p} {n}%" + ("+" if c else "") for p, n, c in bat))
     link.s.close()
 
 

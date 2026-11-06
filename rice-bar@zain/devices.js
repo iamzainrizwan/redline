@@ -3,13 +3,15 @@
 // it Bluetooth batteries, the kernel feeds it wireless dongle ones. A
 // device appears when it connects and goes when it disconnects. Red-bright
 // at or below LOW_PERCENT. Hidden when none are connected. The laptop's
-// own battery is battery.js.
+// own battery is battery.js. Hovering Nothing / CMF buds drops their
+// noise-mode card (buds.js).
 import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 
+import {BUDS_MODEL, BudsCard} from './buds.js';
 import {addPair, isCancelled, UPOWER_BUS} from './util.js';
 
 Gio._promisify(Gio.DBusProxy, 'new_for_bus');
@@ -46,6 +48,7 @@ class Devices extends PanelMenu.Button {
         this.hide();
         this._box = new St.BoxLayout({style_class: 'rice-pairs'});
         this.add_child(this._box);
+        this._budsCard = new BudsCard(this);
 
         this._devices = new Map(); // object path → Gio.DBusProxy
         this._cancellable = new Gio.Cancellable();
@@ -102,6 +105,7 @@ class Devices extends PanelMenu.Button {
     _update() {
         this._box.destroy_all_children();
         const counts = {};
+        let buds = false;
         for (const proxy of this._devices.values()) {
             const get = name => proxy?.get_cached_property(name)?.unpack();
             if (!proxy || get('PowerSupply') || !get('IsPresent'))
@@ -117,7 +121,11 @@ class Devices extends PanelMenu.Button {
             value.text = `${percent}%`;
             if (percent <= LOW_PERCENT)
                 value.add_style_class_name('hot');
+            buds ||= BUDS_MODEL.test(get('Model') ?? '');
         }
         this.visible = this._box.get_n_children() > 0;
+        // hoverable (for the card) only while buds it can drive are on
+        this.reactive = this.track_hover = buds;
+        this._budsCard.enabled = buds;
     }
 });
