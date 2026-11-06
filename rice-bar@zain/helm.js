@@ -9,8 +9,9 @@
 //
 // Data: ~/vault/helm/cli/helm missed --all --json, every REFRESH_SECONDS
 // and on hover; --all adds the blocks that haven't started, and "started"
-// is judged here the way helm judges it (untimed counts, and before 04:00
-// helm means yesterday, where everything has). The order is helm's; it's
+// is judged here the way helm judges it (untimed counts; an earlier day
+// has all started). Until DAY_STARTS (05:00) the bar asks for yesterday
+// by date, an hour past helm's own 04:00 rollover. The order is helm's; it's
 // never re-sorted here. If the CLI fails it's retried with HELM_URL set to
 // FALLBACK_URL, and if that fails too the tag falls back to the hostname.
 import Clutter from 'gi://Clutter';
@@ -33,10 +34,17 @@ const FALLBACK_URL = 'http://alexandria/helm/api';
 const REFRESH_SECONDS = 300;
 const HOVER_REFRESH_SECONDS = 60; // a hover refetches if the data is older
 const TICK = ''; // nf-fa-check
+const DAY_STARTS = 5; // the bar's day rolls over at 05:00
 const TASK_CHARS = 44;
 
 function hours(h) {
     return `${Math.round(h * 10) / 10}`.replace(/\.0$/, '');
+}
+
+// the day the bar shows: yesterday until DAY_STARTS
+function helmDay() {
+    const now = GLib.DateTime.new_now_local();
+    return (now.get_hour() < DAY_STARTS ? now.add_days(-1) : now).format('%Y-%m-%d');
 }
 
 async function runHelm(env = {}) {
@@ -45,7 +53,7 @@ async function runHelm(env = {}) {
     });
     for (const [key, value] of Object.entries(env))
         launcher.setenv(key, value, true);
-    const proc = launcher.spawnv([HELM, 'missed', '--all', '--json']);
+    const proc = launcher.spawnv([HELM, 'missed', helmDay(), '--all', '--json']);
     const [stdout] = await proc.communicate_utf8_async(null, null);
     if (!proc.get_successful())
         throw new Error(`helm exited ${proc.get_exit_status()}`);
