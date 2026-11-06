@@ -290,9 +290,9 @@ EOF
 # bin/buds stand-in for the buds card: --json [mode], starting in nc mid
 cat > "$T/fake-buds" <<'EOF'
 #!/usr/bin/env bash
-mode=mid
-for a; do [[ $a != --json ]] && mode=$a; done
-printf '{"name": "Nothing Ear (a)", "mac": "00:00:00:00:00:00", "mode": "%s", "battery": [{"part": "L", "percent": 80, "charging": false}, {"part": "R", "percent": 75, "charging": false}, {"part": "case", "percent": 40, "charging": true}]}\n' "$mode"
+mode=mid codec=ldac dual=true
+for a; do case $a in --json|dual) ;; ldac|aac) codec=$a ;; on) dual=true ;; off) dual=false ;; *) mode=$a ;; esac; done
+printf '{"name": "Nothing Ear (a)", "mac": "00:00:00:00:00:00", "mode": "%s", "codec": "%s", "dual": %s, "battery": [{"part": "L", "percent": 80, "charging": false}, {"part": "R", "percent": 75, "charging": false}, {"part": "case", "percent": 40, "charging": true}]}\n' "$mode" "$codec" "$dual"
 EOF
 chmod +x "$T/fake-buds"
 

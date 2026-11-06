@@ -1,11 +1,13 @@
 // The buds card: hover the hp % of Nothing / CMF earbuds and a card drops
-// under it with their noise modes; click one to switch.
+// under it with their noise modes, codec and dual connection; click to switch.
 //
 //   Nothing Ear (a)    L 100  R 100
 //   nc  adaptive  trans  off
 //   strength  high  mid  low
+//   codec     ldac  aac
+//   dual      on    off
 //
-// The live mode is red. bin/buds does the talking (the buds' own Bluetooth
+// The live setting is red. A codec switch reboots the buds (~10 s). bin/buds does the talking (the buds' own Bluetooth
 // protocol, no app); each hover re-reads the mode, since the stems change
 // it too. Calls run one at a time, as the buds take one link at a time.
 // RICE_BAR_BUDS points it at another script (the test's fake).
@@ -25,6 +27,8 @@ export const BUDS_MODEL = /^(nothing|cmf)\b/i;
 
 const MODES = [['high', 'nc'], ['adaptive', 'adaptive'], ['trans', 'trans'], ['off', 'off']];
 const STRENGTHS = [['high', 'high'], ['mid', 'mid'], ['low', 'low']];
+const CODECS = [['ldac', 'ldac'], ['aac', 'aac']];
+const DUAL = [['on', 'on'], ['off', 'off']];
 const NC = new Set(['high', 'mid', 'low']);
 // time to cross from the segment into the card before it hides
 const HIDE_DELAY_MS = 300;
@@ -36,6 +40,8 @@ export class BudsCard {
         this._queue = Promise.resolve();
         this._hideId = 0;
         this._mode = null;
+        this._codec = null;
+        this._dual = null;
 
         this.actor = new St.BoxLayout({
             style_class: 'rice-buds-card', vertical: true, visible: false,
@@ -50,6 +56,8 @@ export class BudsCard {
         this._buttons = [];
         this.actor.add_child(this._row(null, MODES));
         this.actor.add_child(this._row('strength', STRENGTHS));
+        this.actor.add_child(this._row('codec', CODECS));
+        this.actor.add_child(this._row('dual', DUAL));
 
         // above the dock, like the helm card
         Main.layoutManager.addTopChrome(this.actor);
@@ -66,6 +74,7 @@ export class BudsCard {
         this._sync();
     }
 
+    // key: null (noise modes), 'strength', 'codec' or 'dual'
     _row(key, modes) {
         const row = new St.BoxLayout({style_class: 'rice-buds-row'});
         if (key)
@@ -73,8 +82,8 @@ export class BudsCard {
         for (const [mode, text] of modes) {
             const b = new St.Button({label: text, style_class: 'rice-buds-mode'});
             b._mode = mode;
-            b._strength = Boolean(key);
-            b.connect('clicked', () => this._run([mode]));
+            b._key = key;
+            b.connect('clicked', () => this._run(key === 'dual' ? ['dual', mode] : [mode]));
             row.add_child(b);
             this._buttons.push(b);
         }
@@ -105,21 +114,30 @@ export class BudsCard {
 
     _paint() {
         for (const b of this._buttons) {
-            const on = b._strength ? b._mode === this._mode
-                : b._mode === this._mode || (b._mode === 'high' && NC.has(this._mode));
+            const on = {
+                strength: () => b._mode === this._mode,
+                codec: () => b._mode === this._codec,
+                dual: () => this._dual !== null && (b._mode === 'on') === this._dual,
+            }[b._key]?.() ??
+                (b._mode === this._mode || (b._mode === 'high' && NC.has(this._mode)));
             if (on)
                 b.add_style_pseudo_class('checked');
             else
                 b.remove_style_pseudo_class('checked');
             // strengths only mean something while noise cancelling is on
-            b.opacity = b._strength && !NC.has(this._mode) ? 110 : 255;
+            b.opacity = b._key === 'strength' && !NC.has(this._mode) ? 110 : 255;
         }
     }
 
     // bin/buds --json [mode]; queued behind any call still running
     _run(args) {
         if (args.length) { // show the click at once; the reply confirms it
-            this._mode = args[0];
+            if (args[0] === 'dual')
+                this._dual = args[1] === 'on';
+            else if (CODECS.some(([c]) => c === args[0]))
+                this._codec = args[0];
+            else
+                this._mode = args[0];
             this._paint();
         }
         this._battery.add_style_pseudo_class('busy');
@@ -133,16 +151,18 @@ export class BudsCard {
             const [stdout, stderr] = await proc.communicate_utf8_async(null, null);
             if (!proc.get_successful())
                 throw new Error(stderr.trim().replace(/^buds: /, '') || 'buds failed');
-            const {name, mode, battery} = JSON.parse(stdout);
+            const {name, mode, codec, dual, battery} = JSON.parse(stdout);
             this._name.text = name;
             this._battery.text = battery
                 .map(({part, percent, charging}) => `${part} ${percent}${charging ? '+' : ''}`)
                 .join('  ');
             this._mode = mode;
+            this._codec = codec ?? null;
+            this._dual = dual ?? null;
         } catch (e) {
             this._name.text = 'buds';
             this._battery.text = e.message;
-            this._mode = null;
+            this._mode = this._codec = this._dual = null;
         }
         if (this._destroyed)
             return;

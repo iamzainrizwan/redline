@@ -5,6 +5,8 @@
   buds nc|trans|off         noise cancelling (high) / transparency / off
   buds high|mid|low|adaptive  noise cancelling strength
   buds cycle                nc -> trans -> off -> nc (like the stem gesture)
+  buds ldac|aac             codec the buds offer (they reboot, ~7 s)
+  buds dual on|off          dual connection (multipoint)
   buds --json [mode]        same, as JSON (the rice bar's buds card reads it)
 
 Talks Nothing's "NT LINK" RFCOMM service (UUID aeac4a03-...), the one the
@@ -22,6 +24,10 @@ NAMES = {v: k for k, v in MODES.items()}
 NAMES.update({0x01: "nc high", 0x02: "nc mid", 0x03: "nc low", 0x04: "nc adaptive"})
 CYCLE = ["high", "trans", "off"]
 GET_BATTERY, GET_ANC, SET_ANC = 0xC007, 0xC01E, 0xF00F
+# codec and multipoint: from nothing-toolbox's docs/PROTOCOL.md (Headphone
+# (1)); the Ear (a) answers the same reads
+GET_CODEC, SET_CODEC, GET_DUAL, SET_DUAL = 0xC029, 0xF01C, 0xC027, 0xF01A
+CODECS = {"aac": 0, "lhdc": 1, "ldac": 2}
 CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")), "buds")
 
 
@@ -127,6 +133,27 @@ class Link:
     def set(self, name):
         self.ask(SET_ANC, bytes([0x01, MODES[name], 0x00]))
 
+    def codec(self):
+        pl = self.ask(GET_CODEC)
+        return {v: k for k, v in CODECS.items()}.get(pl[0]) if pl else None
+
+    def set_codec(self, name):
+        """The buds ack, then reboot; the link may die before the ack."""
+        self.seq += 1
+        try:
+            self.s.send(frame(SET_CODEC, bytes([CODECS[name]]), self.seq))
+            self.s.settimeout(2)
+            self.s.recv(1024)
+        except OSError:
+            pass
+
+    def dual(self):
+        pl = self.ask(GET_DUAL)
+        return bool(pl[0]) if pl else None
+
+    def set_dual(self, on):
+        self.ask(SET_DUAL, bytes([1 if on else 0]))
+
     def battery(self):
         """[(part, percent, charging)]; a bud in the case drops out."""
         pl = self.ask(GET_BATTERY)
@@ -144,10 +171,34 @@ def main():
         print(__doc__.strip())
         return
     want = ALIASES.get(args[0], args[0]) if args else None
-    if want and want not in MODES and want != "cycle":
-        die(f"unknown mode {args[0]} (nc trans off high mid low adaptive cycle)")
+    codec = dual = None
+    if want in ("ldac", "aac"):
+        codec, want = want, None
+    elif want == "dual":
+        if args[1:2] not in (["on"], ["off"]):
+            die("dual on|off")
+        dual, want = args[1] == "on", None
+    elif want and want not in MODES and want != "cycle":
+        die(f"unknown mode {args[0]} (nc trans off high mid low adaptive cycle"
+            " ldac aac dual)")
     mac, name = find_buds()
     link = Link(mac)
+    if codec and link.codec() != codec:
+        link.set_codec(codec)
+        link.s.close()
+        time.sleep(4)  # still connected for a moment before the reboot
+        for _ in range(30):
+            out = subprocess.run(["bluetoothctl", "info", mac],
+                                 capture_output=True, text=True).stdout
+            if "Connected: yes" in out:
+                break
+            time.sleep(0.5)
+        else:
+            die("buds didn't come back after the codec switch")
+        time.sleep(1)
+        link = Link(mac)
+    if dual is not None:
+        link.set_dual(dual)
     if want == "cycle":
         cur = NAMES.get(link.mode(), "")
         cur = "high" if cur.startswith("nc") else cur
@@ -156,14 +207,17 @@ def main():
         link.set(want)
     m = link.mode()
     bat = link.battery()
+    cod, dl = link.codec(), link.dual()
     if as_json:
         print(json.dumps({"name": name, "mac": mac,
                           "mode": {v: k for k, v in MODES.items()}.get(m, m),
+                          "codec": cod, "dual": dl,
                           "battery": [{"part": p, "percent": n, "charging": c}
                                       for p, n, c in bat]}))
     else:
         print(f"{name}: {NAMES.get(m, f'mode {m:#x}')}  " + "  ".join(
-            f"{p} {n}%" + ("+" if c else "") for p, n, c in bat))
+            f"{p} {n}%" + ("+" if c else "") for p, n, c in bat)
+            + f"  {cod or '?'}  dual {'on' if dl else 'off'}")
     link.s.close()
 
 
