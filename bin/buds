@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+"""Noise control and battery for Nothing / CMF earbuds over Bluetooth.
+
+  buds                      mode + battery of the connected buds
+  buds nc|trans|off         noise cancelling (high) / transparency / off
+  buds high|mid|low|adaptive  noise cancelling strength
+  buds cycle                nc -> trans -> off -> nc (like the stem gesture)
+
+Talks Nothing's "NT LINK" RFCOMM service (UUID aeac4a03-...), the one the
+Nothing X app uses: frames are 55 60 01 <cmd le16> <len le16> <seq> <payload>
+<crc16-modbus le>. Checked on the Ear (a); the CMF Buds 2a use the same
+service. The channel is looked up with sdptool once per device and cached.
+"""
+import os, re, socket, subprocess, sys, time
+
+NT_LINK = "aeac4a03-dff5-498f-843a-34487cf133eb"
+MODES = {"high": 0x01, "mid": 0x02, "low": 0x03, "adaptive": 0x04,
+         "off": 0x05, "trans": 0x07}
+ALIASES = {"nc": "high", "anc": "high", "on": "high", "transparency": "trans"}
+NAMES = {v: k for k, v in MODES.items()}
+NAMES.update({0x01: "nc high", 0x02: "nc mid", 0x03: "nc low", 0x04: "nc adaptive"})
+CYCLE = ["high", "trans", "off"]
+GET_BATTERY, GET_ANC, SET_ANC = 0xC007, 0xC01E, 0xF00F
+CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")), "buds")
+
+
+def die(msg):
+    print(f"buds: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def crc16(data):
+    c = 0xFFFF
+    for b in data:
+        c ^= b
+        for _ in range(8):
+            c = (c >> 1) ^ 0xA001 if c & 1 else c >> 1
+    return c
+
+
+def frame(cmd, payload=b"", seq=1):
+    p = bytes([0x55, 0x60, 0x01, cmd & 0xFF, cmd >> 8,
+               len(payload) & 0xFF, len(payload) >> 8, seq]) + payload
+    c = crc16(p)
+    return p + bytes([c & 0xFF, c >> 8])
+
+
+def find_buds():
+    out = subprocess.run(["bluetoothctl", "devices", "Connected"],
+                         capture_output=True, text=True).stdout
+    for mac, name in re.findall(r"Device (\S+) (.+)", out):
+        info = subprocess.run(["bluetoothctl", "info", mac],
+                              capture_output=True, text=True).stdout
+        if NT_LINK in info:
+            return mac, name
+    die("no Nothing/CMF buds connected")
+
+
+def channel(mac):
+    path = os.path.join(CACHE, mac.replace(":", ""))
+    try:
+        return int(open(path).read())
+    except (OSError, ValueError):
+        pass
+    # sdptool can't search a 128-bit UUID; NT LINK is listed under Serial Port
+    out = subprocess.run(["sdptool", "search", "--bdaddr", mac, "SP"],
+                         capture_output=True, text=True, timeout=30).stdout
+    m = re.search(NT_LINK + r"[^\0]*?Channel: (\d+)", out)
+    if not m:
+        die(f"no NT LINK service on {mac}")
+    os.makedirs(CACHE, exist_ok=True)
+    open(path, "w").write(m.group(1))
+    return int(m.group(1))
+
+
+class Link:
+    def __init__(self, mac):
+        self.buf, self.seq = b"", 0
+        ch = channel(mac)
+        for attempt in range(6):  # EBUSY while the last link is still closing
+            self.s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM,
+                                   socket.BTPROTO_RFCOMM)
+            self.s.settimeout(3)
+            try:
+                self.s.connect((mac, ch))
+                return
+            except OSError as e:
+                self.s.close()
+                if attempt == 5:
+                    die(f"connect {mac} ch {ch}: {e.strerror or e}")
+                time.sleep(0.5)
+
+    def frames(self):
+        """Parse whole frames out of the buffer: (cmd, payload)."""
+        while True:
+            i = self.buf.find(b"\x55")
+            if i < 0 or len(self.buf) < i + 8:
+                return
+            b = self.buf[i:]
+            n = b[5] | b[6] << 8
+            size = 8 + n + (2 if b[1] & 0x20 else 0)
+            if len(b) < size:
+                return
+            self.buf = b[size:]
+            yield b[3] | b[4] << 8, b[8:8 + n]
+
+    def ask(self, cmd, payload=b""):
+        self.seq += 1
+        self.s.send(frame(cmd, payload, self.seq))
+        end = time.time() + 2
+        while time.time() < end:
+            for rcmd, pl in self.frames():
+                if rcmd & 0x3FFF == cmd & 0x3FFF:  # reply sets 0x4000, drops 0x8000
+                    return pl
+            self.s.settimeout(max(0.05, end - time.time()))
+            try:
+                self.buf += self.s.recv(1024)
+            except socket.timeout:
+                break
+        die(f"no reply to {cmd:#06x}")
+
+    def mode(self):
+        pl = self.ask(GET_ANC)
+        return pl[1] if len(pl) > 1 else None
+
+    def set(self, name):
+        self.ask(SET_ANC, bytes([0x01, MODES[name], 0x00]))
+
+    def battery(self):
+        pl = self.ask(GET_BATTERY)
+        parts = {0x02: "L", 0x03: "R", 0x04: "case"}
+        out = []
+        for k in range(pl[0] if pl else 0):
+            dev, lvl = pl[1 + 2 * k], pl[2 + 2 * k]
+            out.append(f"{parts.get(dev, hex(dev))} {lvl & 0x7F}%"
+                       + ("+" if lvl & 0x80 else ""))
+        return "  ".join(out)
+
+
+def main():
+    args = sys.argv[1:]
+    if args and args[0] in ("-h", "--help"):
+        print(__doc__.strip())
+        return
+    want = ALIASES.get(args[0], args[0]) if args else None
+    if want and want not in MODES and want != "cycle":
+        die(f"unknown mode {args[0]} (nc trans off high mid low adaptive cycle)")
+    mac, name = find_buds()
+    link = Link(mac)
+    if want == "cycle":
+        cur = NAMES.get(link.mode(), "")
+        cur = "high" if cur.startswith("nc") else cur
+        want = CYCLE[(CYCLE.index(cur) + 1) % 3] if cur in CYCLE else "high"
+    if want:
+        link.set(want)
+    m = link.mode()
+    print(f"{name}: {NAMES.get(m, f'mode {m:#x}')}  {link.battery()}")
+    link.s.close()
+
+
+if __name__ == "__main__":
+    main()
