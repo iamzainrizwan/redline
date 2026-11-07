@@ -329,7 +329,7 @@ export RICE_OSD_FILE=$T/rice-osd  # keep rice-osd off the real session's file
 python3 -I $T/fake-player.py &
 if [[ -n "${RICE_BAR_TEST_UPOWER:-}" ]]; then
   python3 -I $T/fake-upower.py &
-  export RICE_BAR_UPOWER_BUS=session RICE_BAR_HOT_PERCENT=0 RICE_BAR_BUDS=$T/fake-buds
+  export RICE_BAR_UPOWER_BUS=session RICE_BAR_HOT_PERCENT=0 RICE_BAR_BUDS=${RICE_BAR_BUDS:-$T/fake-buds}
 fi
 gnome-shell --headless --wayland --virtual-monitor 1920x1080 --mode=ubuntu > $T/out/shell.log 2>&1 &
 shell=\$!

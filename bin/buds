@@ -111,7 +111,7 @@ class Link:
             self.buf = b[size:]
             yield b[3] | b[4] << 8, b[8:8 + n]
 
-    def ask(self, cmd, payload=b""):
+    def ask(self, cmd, payload=b"", required=True):
         self.seq += 1
         self.s.send(frame(cmd, payload, self.seq))
         end = time.time() + 2
@@ -124,6 +124,8 @@ class Link:
                 self.buf += self.s.recv(1024)
             except socket.timeout:
                 break
+        if not required:
+            return None
         die(f"no reply to {cmd:#06x}")
 
     def mode(self):
@@ -134,7 +136,7 @@ class Link:
         self.ask(SET_ANC, bytes([0x01, MODES[name], 0x00]))
 
     def codec(self):
-        pl = self.ask(GET_CODEC)
+        pl = self.ask(GET_CODEC, required=False)  # None: buds without it
         return {v: k for k, v in CODECS.items()}.get(pl[0]) if pl else None
 
     def set_codec(self, name):
@@ -148,7 +150,7 @@ class Link:
             pass
 
     def dual(self):
-        pl = self.ask(GET_DUAL)
+        pl = self.ask(GET_DUAL, required=False)
         return bool(pl[0]) if pl else None
 
     def set_dual(self, on):

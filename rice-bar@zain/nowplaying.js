@@ -28,6 +28,7 @@ const ARTIST_TITLE_CHARS = 20;
 const ICON = ''; // nf-fa-music
 const ART_SIZE = 64;
 const TEXT_WIDTH = 230; // the card's text column; the title wraps at this
+const CARD_TITLE_CHARS = 120; // about 5 wrapped lines, so a runaway title can't fill the screen
 
 // microseconds → "6:07", or "1:02:07" from an hour
 function clock(us) {
@@ -106,11 +107,14 @@ class TrackCard {
     set(proxy, playing, metadata) {
         const str = key => metadata[key]?.unpack() ?? '';
         this._proxy = proxy;
-        this._title.text = str('xesam:title');
+        this._title.text = truncate(`${str('xesam:title')}`, CARD_TITLE_CHARS);
         // the boxes measure a wrapped label as one line; pin its real height
+        // (measured in the card's bold font: unstyled it comes out a line short)
         this._title.height = -1;
+        this._title.ensure_style();
         this._title.height = this._title.get_preferred_height(TEXT_WIDTH)[1];
-        this._artist.text = (metadata['xesam:artist']?.deepUnpack() ?? []).join(', ');
+        const artist = metadata['xesam:artist']?.deepUnpack() ?? [];
+        this._artist.text = Array.isArray(artist) ? artist.join(', ') : `${artist}`;
         this._artist.visible = !!this._artist.text;
         this._album.text = str('xesam:album');
         this._album.visible = !!this._album.text;

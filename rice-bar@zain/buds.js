@@ -56,8 +56,11 @@ export class BudsCard {
         this._buttons = [];
         this.actor.add_child(this._row(null, MODES));
         this.actor.add_child(this._row('strength', STRENGTHS));
-        this.actor.add_child(this._row('codec', CODECS));
-        this.actor.add_child(this._row('dual', DUAL));
+        // hidden for buds that don't answer the codec / dual reads
+        this._codecRow = this._row('codec', CODECS);
+        this._dualRow = this._row('dual', DUAL);
+        this.actor.add_child(this._codecRow);
+        this.actor.add_child(this._dualRow);
 
         // above the dock, like the helm card
         Main.layoutManager.addTopChrome(this.actor);
@@ -150,7 +153,8 @@ export class BudsCard {
                 Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
             const [stdout, stderr] = await proc.communicate_utf8_async(null, null);
             if (!proc.get_successful())
-                throw new Error(stderr.trim().replace(/^buds: /, '') || 'buds failed');
+                // last line only: a Python traceback ends with its error
+                throw new Error(stderr.trim().split('\n').pop().replace(/^buds: /, '') || 'buds failed');
             const {name, mode, codec, dual, battery} = JSON.parse(stdout);
             this._name.text = name;
             this._battery.text = battery
@@ -159,6 +163,8 @@ export class BudsCard {
             this._mode = mode;
             this._codec = codec ?? null;
             this._dual = dual ?? null;
+            this._codecRow.visible = this._codec !== null;
+            this._dualRow.visible = this._dual !== null;
         } catch (e) {
             this._name.text = 'buds';
             this._battery.text = e.message;

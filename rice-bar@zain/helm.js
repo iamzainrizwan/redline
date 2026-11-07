@@ -88,7 +88,8 @@ class HelmCard {
         for (const {at, project, task, kind, tier: rowTier} of rows) {
             if (rowTier !== tier) {
                 tier = rowTier;
-                this.actor.add_child(new St.Label({text: tier, style_class: 'rice-helm-tier'}));
+                if (tier) // no heading for a block helm sent without a tier
+                    this.actor.add_child(new St.Label({text: tier, style_class: 'rice-helm-tier'}));
             }
             const row = new St.BoxLayout({style_class: `rice-helm-row ${kind}`});
             const cell = (text, style) => {
@@ -96,8 +97,8 @@ class HelmCard {
                 label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
                 row.add_child(label);
             };
-            cell(at ?? '--:--', 'rice-helm-at');
-            cell(project, 'rice-helm-project');
+            cell(at || '--:--', 'rice-helm-at');
+            cell(project ?? '', 'rice-helm-project');
             cell(task.length > TASK_CHARS ? `${task.slice(0, TASK_CHARS - 1)}…` : task,
                 'rice-helm-task');
             this.actor.add_child(row);
@@ -208,13 +209,14 @@ class Helm extends PanelMenu.Button {
             this.remove_style_class_name('overdue');
 
         const sum = (blocks, f = () => true) =>
-            blocks.filter(f).reduce((h, b) => h + b.hours, 0);
+            blocks.filter(f).reduce((h, b) => h + (Number(b.hours) || 0), 0);
         const header = missed.length
             ? `missed ${missed.length} · ${hours(sum(missed))}h (${hours(sum(missed, b => b.floor))}h floor)`
             : `nothing missed  ${TICK}`;
+        // fields can come back null; one bad block mustn't blank the card
         const rows = data.blocks.map(b => ({
-            at: b.at, project: b.project, tier: b.tier,
-            task: b.label ?? b.task,
+            at: b.at, project: b.project, tier: b.tier ?? '',
+            task: `${b.label ?? b.task ?? ''}`.replace(/\s+/g, ' '),
             kind: !b.floor ? 'stretch' : started(b) ? 'overdue' : 'floor',
         }));
         this._card.set(header, rows);
