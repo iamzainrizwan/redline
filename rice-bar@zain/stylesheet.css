@@ -1,4 +1,4 @@
-/* rice bar — palette.md, modelled on tmux.conf's status line:
+/* rice bar — black/red/grey palette (README), modelled on tmux.conf's status line:
  * bg on the panel, red blocks for the session (host) and current window
  * (workspace), comment-grey for the rest, fg for values. */
 
@@ -71,9 +71,10 @@
   font-weight: bold;
 }
 
-/* [helm 14:30 leetcode] — a dark block; red (like tmux's session name) once a
- * floor block is overdue. Falls back to the hostname. */
-#panel .panel-button.rice-helm {
+/* the tag ([helm 14:30 leetcode] /  14:00 standup) — a dark block; red (like
+ * tmux's session name) when it's hot: a missed block, an event on now. Falls
+ * back to the hostname. */
+#panel .panel-button.rice-tag {
   background-color: #1a1a1a;
   color: #e0e0e0;
   font-weight: bold;
@@ -83,21 +84,21 @@
   margin-right: 8px;
 }
 
-#panel .panel-button.rice-helm:hover {
+#panel .panel-button.rice-tag:hover {
   background-color: #333333;
 }
 
-#panel .panel-button.rice-helm.overdue {
+#panel .panel-button.rice-tag.hot {
   background-color: #cc2222;
   color: #000000;
 }
 
-#panel .panel-button.rice-helm.overdue:hover {
+#panel .panel-button.rice-tag.hot:hover {
   background-color: #e03333;
 }
 
-/* today's unticked blocks, under the helm tag on hover */
-.rice-helm-card {
+/* the day's blocks / events, under the tag on hover */
+.rice-tag-card {
   font-family: "BlexMono Nerd Font", monospace;
   background-color: #0a0a0a;
   border: 1px solid #333333;
@@ -105,43 +106,43 @@
   spacing: 4px;
 }
 
-.rice-helm-head {
+.rice-tag-head {
   color: #666666;
   padding-bottom: 4px;
 }
 
-.rice-helm-tier {
+.rice-tag-tier {
   color: #444444;
   padding-top: 4px;
 }
 
-.rice-helm-row {
+.rice-tag-row {
   spacing: 12px;
   color: #e0e0e0;
 }
 
-.rice-helm-row.overdue {
+.rice-tag-row.hot {
   color: #ff4444;
 }
 
-.rice-helm-row.stretch {
+.rice-tag-row.dim {
   color: #666666;
 }
 
-.rice-helm-at {
+.rice-tag-at {
   width: 5em;
 }
 
-.rice-helm-project {
+.rice-tag-project {
   width: 10em;
   color: #666666;
 }
 
-.rice-helm-row.overdue .rice-helm-project {
+.rice-tag-row.hot .rice-tag-project {
   color: #cc2222;
 }
 
-.rice-helm-row.stretch .rice-helm-project {
+.rice-tag-row.dim .rice-tag-project {
   color: #444444;
 }
 

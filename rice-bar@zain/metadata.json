@@ -3,5 +3,5 @@
   "name": "rice bar",
   "description": "tmux-style top bar for ~/rice: host tag, workspaces, focused window, now playing, cpu/mem alerts, device batteries, battery. GNOME's quick settings and calendar stay, moved and restyled.",
   "shell-version": ["46"],
-  "url": "https://github.com/iamzainrizwan/rice"
+  "url": "https://github.com/iamzainrizwan/rice-bar"
 }

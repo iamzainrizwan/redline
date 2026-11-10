@@ -25,6 +25,11 @@
 #                              mic off tags. The headphones are Nothing
 #                              buds, so with HOVER=rice-devices the buds
 #                              card shows (a fake bin/buds, in nc mid)
+#   RICE_BAR_TEST_CALENDAR=1 rice-bar-test
+#                            → the tag on its calendar source, fed by a fake
+#                              GNOME calendar server: an event that ended,
+#                              one on now, one in 3 h and an all-day one
+#                              (HOVER=rice-tag: the day card)
 #
 # The test shell gets its own session bus and its own XDG config/data/cache
 # dirs, so its dconf writes land in a scratch database. That isolation only
@@ -39,8 +44,8 @@
 # segments something to show.
 set -euo pipefail
 
-RICE="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
-EXT="$RICE/gnome/.local/share/gnome-shell/extensions/rice-bar@zain"
+REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+EXT="$REPO/rice-bar@zain"
 T="$(mktemp -d "${TMPDIR:-/tmp}/rice-bar-test.XXXXXX")"
 mkdir -p "$T"/{config,cache,out,data/gnome-shell/extensions/rice-probe@zain}
 ln -s "$EXT" "$T/data/gnome-shell/extensions/rice-bar@zain"
@@ -194,7 +199,7 @@ export default class extends Extension {
         osdStream.close(null);
         // bin/rice-osd -> riceosd.js: a script-triggered OSD (test's own file)
         await pause(3000);
-        GLib.spawn_command_line_async(\`\${GLib.get_home_dir()}/rice/bin/rice-osd video-display-symbolic '60 Hz'\`);
+        GLib.spawn_command_line_async(\`$REPO/bin/rice-osd video-display-symbolic '60 Hz'\`);
         await pause(700);
         const fosd = Main.osdWindowManager._osdWindows[0];
         GLib.file_set_contents(OUT + '/osd-file.txt', \`rice-osd visible=\${fosd.visible} label=\${fosd._label.text}\n\`);
@@ -287,6 +292,40 @@ Gio.bus_own_name(Gio.BusType.SESSION, 'org.freedesktop.UPower', 0, on_bus, None,
 GLib.MainLoop().run()
 EOF
 
+# GNOME's calendar server stand-in: answers SetTimeRange with today's events
+cat > "$T/fake-calendar.py" <<'EOF'
+import time
+from gi.repository import Gio, GLib
+XML = '''<node><interface name="org.gnome.Shell.CalendarServer">
+<method name="SetTimeRange"><arg type="x" direction="in"/><arg type="x" direction="in"/><arg type="b" direction="in"/></method>
+<signal name="EventsAddedOrUpdated"><arg type="a(ssxxa{sv})"/></signal>
+<signal name="EventsRemoved"><arg type="as"/></signal>
+<signal name="ClientDisappeared"><arg type="s"/></signal>
+<property name="HasCalendars" type="b" access="read"/>
+</interface></node>'''
+IFACE = Gio.DBusNodeInfo.new_for_xml(XML).interfaces[0]
+PATH = '/org/gnome/Shell/CalendarServer'
+now = int(time.time()) // 300 * 300
+lt = time.localtime()
+midnight = int(time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 0, 0, 0, 0, 0, -1)))
+EVENTS = [  # an id ending in a newline isn't recurring
+    ('test\nallday\n', 'bin day', midnight, midnight + 86400, {}),
+    ('test\npast\n', 'standup', now - 7200, now - 5400, {}),
+    ('test\nnow\n', 'design review', now - 600, now + 3000, {}),
+    ('test\nlater\n', 'gym', now + 10800, now + 14400, {}),
+]
+def call(conn, sender, path, iface, method, params, inv):
+    inv.return_value(None)
+    conn.emit_signal(None, PATH, IFACE.name, 'EventsAddedOrUpdated',
+                     GLib.Variant('(a(ssxxa{sv}))', (EVENTS,)))
+def get_prop(conn, sender, path, iface, prop):
+    return GLib.Variant('b', True)
+def on_bus(conn, name):
+    conn.register_object(PATH, IFACE, call, get_prop, None)
+Gio.bus_own_name(Gio.BusType.SESSION, 'org.gnome.Shell.CalendarServer', 0, on_bus, None, None)
+GLib.MainLoop().run()
+EOF
+
 # bin/buds stand-in for the buds card: --json [mode], starting in nc mid
 cat > "$T/fake-buds" <<'EOF'
 #!/usr/bin/env bash
@@ -330,6 +369,11 @@ python3 -I $T/fake-player.py &
 if [[ -n "${RICE_BAR_TEST_UPOWER:-}" ]]; then
   python3 -I $T/fake-upower.py &
   export RICE_BAR_UPOWER_BUS=session RICE_BAR_HOT_PERCENT=0 RICE_BAR_BUDS=${RICE_BAR_BUDS:-$T/fake-buds}
+fi
+if [[ -n "${RICE_BAR_TEST_CALENDAR:-}" ]]; then
+  python3 -I $T/fake-calendar.py &
+  export RICE_BAR_TAG=calendar
+  sleep 1  # own the name before the shell asks for it
 fi
 gnome-shell --headless --wayland --virtual-monitor 1920x1080 --mode=ubuntu > $T/out/shell.log 2>&1 &
 shell=\$!

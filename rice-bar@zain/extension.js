@@ -1,6 +1,6 @@
 // rice bar: turns GNOME's top bar into something like the tmux status line.
 //
-//   left:  [helm 14:30 leetcode] 1 [2] 3  focused window
+//   left:  [ 14:00 standup] 1 [2] 3  focused window   (the tag: tag.js)
 //   right: ♪ now playing  [cpu/mem alerts]  hp 80%  bat 87% 3:12  [live] [mic off]
 //          [quick settings]  clock
 //
@@ -9,11 +9,11 @@
 //
 // Only the segments are new. Quick settings and the calendar menu are
 // GNOME's own (the clock is moved from the centre to the far right); the
-// rice shell theme and stylesheet.css restyle them, and gateIcon() keeps
+// stylesheet.css (and, on my machine, the rice shell theme) restyle them, and gateIcon() keeps
 // their status icons quiet: no night light, mic privacy icon or
 // notification bell, wifi only
-// when the connection is poor or down, volume only when muted. Colors are
-// palette.md.
+// when the connection is poor or down, volume only when muted. Colours are
+// OLED black, red and greys (see the README).
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
@@ -21,7 +21,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {Helm} from './helm.js';
+import {Tag} from './tag.js';
 import {Workspaces} from './workspaces.js';
 import {WindowTitle} from './title.js';
 import {NowPlaying} from './nowplaying.js';
@@ -40,7 +40,7 @@ const QS_HANDLE = '\uf1de'; // nf-fa-sliders
 
 const SEGMENTS = [
     // role, class, box, position
-    ['rice-helm', Helm, 'left', 0],
+    ['rice-tag', Tag, 'left', 0],
     ['rice-workspaces', Workspaces, 'left', 1],
     ['rice-title', WindowTitle, 'left', 2],
     ['rice-nowplaying', NowPlaying, 'right', 0],
@@ -59,7 +59,7 @@ export default class RiceBarExtension extends Extension {
         this._layoutOsd = new LayoutOsd();
         this._riceOsd = new RiceOsd();
 
-        // the helm tag opens the overview instead
+        // the tag opens the overview instead
         Main.panel.statusArea.activities.container.hide();
 
         // clock: centre → far right, after quick settings, like tmux's %H:%M

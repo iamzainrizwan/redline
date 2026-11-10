@@ -19,8 +19,10 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {placeUnder} from './util.js';
 
+// bin/buds, as install.sh puts it on PATH (~/.local/bin)
 const BUDS = GLib.getenv('RICE_BAR_BUDS') ??
-    GLib.build_filenamev([GLib.get_home_dir(), 'rice', 'bin', 'buds']);
+    GLib.find_program_in_path('buds') ??
+    GLib.build_filenamev([GLib.get_home_dir(), '.local', 'bin', 'buds']);
 
 // UPower's Model for buds bin/buds can drive
 export const BUDS_MODEL = /^(nothing|cmf)\b/i;
@@ -62,7 +64,7 @@ export class BudsCard {
         this.actor.add_child(this._codecRow);
         this.actor.add_child(this._dualRow);
 
-        // above the dock, like the helm card
+        // above the dock, like the tag's card
         Main.layoutManager.addTopChrome(this.actor);
         this.actor.connect('notify::hover', () => this._sync());
         button.connectObject(

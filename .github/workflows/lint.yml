@@ -1,0 +1,17 @@
+name: lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: shellcheck
+        run: shellcheck install.sh bin/rice-osd bin/rice-bar-test
+      - name: python syntax
+        run: python3 -c "compile(open('bin/buds').read(), 'bin/buds', 'exec')"
+      - name: js syntax
+        run: for f in rice-bar@zain/*.js; do node --check --input-type=module < "$f" || exit 1; done
