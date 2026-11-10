@@ -18,7 +18,7 @@ export class FullTextTooltip {
         this._button = button;
         this._label = label;
         this.text = '';
-        this._tooltip = new St.Label({style_class: 'rice-tooltip', visible: false});
+        this._tooltip = new St.Label({style_class: 'redline-tooltip', visible: false});
         Main.layoutManager.addChrome(this._tooltip);
         button.connectObject(
             'notify::hover', () => this.sync(),
@@ -62,21 +62,21 @@ export function isCancelled(e) {
 export function addPair(box, key) {
     const keyLabel = new St.Label({
         text: key,
-        style_class: 'rice-key',
+        style_class: 'redline-key',
         y_align: Clutter.ActorAlign.CENTER,
     });
     box.add_child(keyLabel);
     const value = new St.Label({
-        style_class: 'rice-val',
+        style_class: 'redline-val',
         y_align: Clutter.ActorAlign.CENTER,
     });
     box.add_child(value);
     return [keyLabel, value];
 }
 
-// UPower's bus. rice-bar-test points it at its own session bus, where a
+// UPower's bus. redline-test points it at its own session bus, where a
 // fake UPower plays battery and Bluetooth states the test machine can't.
-export const UPOWER_BUS = GLib.getenv('RICE_BAR_UPOWER_BUS') === 'session'
+export const UPOWER_BUS = GLib.getenv('REDLINE_UPOWER_BUS') === 'session'
     ? Gio.BusType.SESSION : Gio.BusType.SYSTEM;
 
 // Keeps a GNOME status icon hidden unless show(iconName) says otherwise,

@@ -1,35 +1,35 @@
 #!/usr/bin/env bash
-# Test the rice bar extension in a throwaway headless GNOME Shell, without
+# Test the redline extension in a throwaway headless GNOME Shell, without
 # touching the live session or logging out:
 #
-#   rice-bar-test            → prints the output dir: probe.txt, cycle.txt,
+#   redline-test            → prints the output dir: probe.txt, cycle.txt,
 #                              panel.png, screen.png, osd.png (US→UK
-#                              layout popup), osd-file.png (rice-osd),
+#                              layout popup), osd-file.png (redline-osd),
 #                              osd-level.png (volume-style), shell.log
-#   RICE_BAR_TEST_HOVER=dateMenu rice-bar-test
+#   REDLINE_TEST_HOVER=dateMenu redline-test
 #                            → same, with that panel item (a statusArea
 #                              role) drawn hovered in the screenshots
-#   RICE_BAR_TEST_SHOW=overview|apps|lock rice-bar-test
+#   REDLINE_TEST_SHOW=overview|apps|lock redline-test
 #                            → same, with the overview, app grid or lock
 #                              screen up in screen.png
-#   RICE_BAR_TEST_OPEN=quickSettings rice-bar-test
+#   REDLINE_TEST_OPEN=quickSettings redline-test
 #                            → same, with that item's menu open
-#   RICE_BAR_TEST_TRACK='a long title' rice-bar-test
+#   REDLINE_TEST_TRACK='a long title' redline-test
 #                            → the fake player's track title (with
-#                              HOVER=rice-nowplaying: the track card)
-#   RICE_BAR_TEST_UPOWER=1 rice-bar-test
+#                              HOVER=redline-nowplaying: the track card)
+#   REDLINE_TEST_UPOWER=1 redline-test
 #                            → a fake UPower on the test bus: on battery
 #                              (64%, 3:12 left), headphones at 80% and a
 #                              mouse at 15%; also forces the cpu/mem
 #                              alerts on (threshold 0) and the live /
 #                              mic off tags. The headphones are Nothing
-#                              buds, so with HOVER=rice-devices the buds
+#                              buds, so with HOVER=redline-devices the buds
 #                              card shows (a fake bin/buds, in nc mid)
-#   RICE_BAR_TEST_CALENDAR=1 rice-bar-test
+#   REDLINE_TEST_CALENDAR=1 redline-test
 #                            → the tag on its calendar source, fed by a fake
 #                              GNOME calendar server: an event that ended,
 #                              one on now, one in 3 h and an all-day one
-#                              (HOVER=rice-tag: the day card)
+#                              (HOVER=redline-tag: the day card)
 #
 # The test shell gets its own session bus and its own XDG config/data/cache
 # dirs, so its dconf writes land in a scratch database. That isolation only
@@ -37,7 +37,7 @@
 # inherits the bus daemon's environment, not ours) — set them later and the
 # test's gsettings calls overwrite the real settings. Two guards check this.
 #
-# It loads the user theme + rice bar + a probe extension that, after the
+# It loads the user theme + redline + a probe extension that, after the
 # bar settles, records the panel layout, screenshots it, then disables and
 # re-enables the bar (what the lock screen does) and records that too. A
 # fake MPRIS player and a GTK3 window give the now-playing and title
@@ -45,15 +45,15 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
-EXT="$REPO/rice-bar@zain"
-T="$(mktemp -d "${TMPDIR:-/tmp}/rice-bar-test.XXXXXX")"
-mkdir -p "$T"/{config,cache,out,data/gnome-shell/extensions/rice-probe@zain}
-ln -s "$EXT" "$T/data/gnome-shell/extensions/rice-bar@zain"
+EXT="$REPO/redline@zain"
+T="$(mktemp -d "${TMPDIR:-/tmp}/redline-test.XXXXXX")"
+mkdir -p "$T"/{config,cache,out,data/gnome-shell/extensions/redline-probe@zain}
+ln -s "$EXT" "$T/data/gnome-shell/extensions/redline@zain"
 
-cat > "$T/data/gnome-shell/extensions/rice-probe@zain/metadata.json" <<'EOF'
-{"uuid": "rice-probe@zain", "name": "rice bar test probe", "description": "test only", "shell-version": ["46"]}
+cat > "$T/data/gnome-shell/extensions/redline-probe@zain/metadata.json" <<'EOF'
+{"uuid": "redline-probe@zain", "name": "redline test probe", "description": "test only", "shell-version": ["46"]}
 EOF
-cat > "$T/data/gnome-shell/extensions/rice-probe@zain/extension.js" <<EOF
+cat > "$T/data/gnome-shell/extensions/redline-probe@zain/extension.js" <<EOF
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
@@ -86,7 +86,7 @@ function layout() {
 export default class extends Extension {
     enable() {
         this._run().catch(e => {
-            logError(e, 'rice-probe');
+            logError(e, 'redline-probe');
             GLib.file_set_contents(OUT + '/error.txt', String(e) + '\n' + e.stack);
             GLib.file_set_contents(OUT + '/done', 'error');
         });
@@ -97,7 +97,7 @@ export default class extends Extension {
     async _run() {
         // a notification, so the clock's notification dot (and the centring
         // pad GNOME pairs with it) would be showing
-        Main.notify('rice-bar-test', 'notification dot check');
+        Main.notify('redline-test', 'notification dot check');
         await pause(14000);
         // a headless shell doesn't always focus a new window; make sure the
         // title segment has something to show
@@ -111,8 +111,8 @@ export default class extends Extension {
         GLib.file_set_contents(OUT + '/probe.txt', [
             ...layout(),
             'focus: ' + global.display.focus_window?.get_title() + \` (overview was \${overviewAtStart ? 'open' : 'closed'}, now \${Main.overview.visible ? 'open' : 'closed'})\`,
-            'title label: ' + bar['rice-title']?._label.text,
-            'workspaces: ' + bar['rice-workspaces']?._box.get_children().map(b => b.get_style_class_name()).join(' / '),
+            'title label: ' + bar['redline-title']?._label.text,
+            'workspaces: ' + bar['redline-workspaces']?._box.get_children().map(b => b.get_style_class_name()).join(' / '),
             // x+width of each right-side item and the clock's insides, for
             // spotting dead gaps between segments
             'right geometry: ' + Main.panel._rightBox.get_children().filter(c => c.visible)
@@ -122,10 +122,10 @@ export default class extends Extension {
             'clock box: ' + clockBox.get_children().map(c => \`\${c.constructor.name}\${c.visible ? '' : '(hidden)'}\`).join(' | '),
         ].join('\n') + '\n');
 
-        const open = GLib.getenv('RICE_BAR_TEST_OPEN');
+        const open = GLib.getenv('REDLINE_TEST_OPEN');
         if (open)
             bar[open]?.menu.open(false);
-        const show = GLib.getenv('RICE_BAR_TEST_SHOW');
+        const show = GLib.getenv('REDLINE_TEST_SHOW');
         if (show === 'overview')
             Main.overview.show();
         else if (show === 'apps')
@@ -134,11 +134,11 @@ export default class extends Extension {
             Main.screenShield.lock(false);
         if (show)
             await pause(2500);
-        if (GLib.getenv('RICE_BAR_TEST_UPOWER')) {
-            bar['rice-live']?.setSharing(true);
-            bar['rice-micoff'] && (bar['rice-micoff'].text = 'mic off');
+        if (GLib.getenv('REDLINE_TEST_UPOWER')) {
+            bar['redline-live']?.setSharing(true);
+            bar['redline-micoff'] && (bar['redline-micoff'].text = 'mic off');
         }
-        const hover = GLib.getenv('RICE_BAR_TEST_HOVER');
+        const hover = GLib.getenv('REDLINE_TEST_HOVER');
         if (hover) {
             bar[hover]?.add_style_pseudo_class('hover');
             bar[hover]?.set_hover(true); // what tooltips listen for
@@ -153,7 +153,7 @@ export default class extends Extension {
         }
 
         // switching to the spare empty workspace should reveal the switcher
-        const wsSegment = bar['rice-workspaces'];
+        const wsSegment = bar['redline-workspaces'];
         const wsLine = () => \`workspaces visible=\${wsSegment.visible}: \` +
             wsSegment._box.get_children().map(b => \`\${b.label}[\${b.get_style_class_name()}]\`).join(' ');
         const wsBefore = wsLine();
@@ -167,15 +167,15 @@ export default class extends Extension {
             ['on workspace 1:    ' + wsBefore, 'on the empty last: ' + wsAfter, 'back on 1:         ' + wsLine()].join('\\n') + '\\n');
 
         const em = Main.extensionManager;
-        await em.disableExtension('rice-bar@zain');
+        await em.disableExtension('redline@zain');
         await pause(2000);
         const disabled = layout();
-        await em.enableExtension('rice-bar@zain');
+        await em.enableExtension('redline@zain');
         await pause(2000);
         GLib.file_set_contents(OUT + '/cycle.txt', [
             '--- after disable', ...disabled,
             '--- after re-enable', ...layout(),
-            'state: ' + em.lookup('rice-bar@zain')?.state + ' (1 = enabled)',
+            'state: ' + em.lookup('redline@zain')?.state + ' (1 = enabled)',
         ].join('\n') + '\n');
         // control: GNOME's OSD shown directly, no layout change involved
         Main.osdWindowManager.show(-1, Gio.ThemedIcon.new('audio-volume-high-symbolic'), 'control');
@@ -197,12 +197,12 @@ export default class extends Extension {
             .replace(null, false, Gio.FileCreateFlags.NONE, null);
         await new Shell.Screenshot().screenshot_area(0, 0, global.stage.width, global.stage.height, osdStream);
         osdStream.close(null);
-        // bin/rice-osd -> riceosd.js: a script-triggered OSD (test's own file)
+        // bin/redline-osd -> osd.js: a script-triggered OSD (test's own file)
         await pause(3000);
-        GLib.spawn_command_line_async(\`$REPO/bin/rice-osd video-display-symbolic '60 Hz'\`);
+        GLib.spawn_command_line_async(\`$REPO/bin/redline-osd video-display-symbolic '60 Hz'\`);
         await pause(700);
         const fosd = Main.osdWindowManager._osdWindows[0];
-        GLib.file_set_contents(OUT + '/osd-file.txt', \`rice-osd visible=\${fosd.visible} label=\${fosd._label.text}\n\`);
+        GLib.file_set_contents(OUT + '/osd-file.txt', \`redline-osd visible=\${fosd.visible} label=\${fosd._label.text}\n\`);
         const fileStream = Gio.File.new_for_path(OUT + '/osd-file.png')
             .replace(null, false, Gio.FileCreateFlags.NONE, null);
         await new Shell.Screenshot().screenshot_area(0, 0, global.stage.width, global.stage.height, fileStream);
@@ -229,7 +229,7 @@ XML = '''<node><interface name="org.mpris.MediaPlayer2.Player">
 <property name="Position" type="x" access="read"/>
 <method name="PlayPause"/><method name="Next"/><method name="Previous"/>
 </interface></node>'''
-TITLE = os.environ.get('RICE_BAR_TEST_TRACK') or 'Windowlicker'
+TITLE = os.environ.get('REDLINE_TEST_TRACK') or 'Windowlicker'
 def get_prop(conn, sender, path, iface, prop):
     if prop == 'PlaybackStatus':
         return GLib.Variant('s', 'Playing')
@@ -351,12 +351,12 @@ cat > "$T/inner.sh" <<EOF
 tr '\0' '\n' < /proc/\$PPID/environ | grep -qx 'XDG_CONFIG_HOME=$T/config' ||
   { echo "ABORT: bus not isolated" >&2; exit 1; }
 # guard 2: a dconf write must land in the scratch database
-dconf write /org/rice/isolation-probe true
+dconf write /org/redline/isolation-probe true
 [[ -f $T/config/dconf/user ]] ||
-  { dconf reset /org/rice/isolation-probe; echo "ABORT: dconf not isolated" >&2; exit 1; }
+  { dconf reset /org/redline/isolation-probe; echo "ABORT: dconf not isolated" >&2; exit 1; }
 
 gsettings set org.gnome.shell enabled-extensions \
-  "['user-theme@gnome-shell-extensions.gcampax.github.com', 'rice-bar@zain', 'rice-probe@zain']"
+  "['user-theme@gnome-shell-extensions.gcampax.github.com', 'redline@zain', 'redline-probe@zain']"
 gsettings set org.gnome.shell disable-user-extensions false
 gsettings set org.gnome.desktop.interface color-scheme prefer-dark
 gsettings set org.gnome.desktop.interface clock-show-weekday true
@@ -364,15 +364,15 @@ gsettings set org.gnome.desktop.interface clock-show-date true
 gsettings set org.gnome.desktop.interface show-battery-percentage false
 dconf write /org/gnome/shell/extensions/user-theme/name "'rice'"
 
-export RICE_OSD_FILE=$T/rice-osd  # keep rice-osd off the real session's file
+export REDLINE_OSD_FILE=$T/redline-osd  # keep redline-osd off the real session's file
 python3 -I $T/fake-player.py &
-if [[ -n "${RICE_BAR_TEST_UPOWER:-}" ]]; then
+if [[ -n "${REDLINE_TEST_UPOWER:-}" ]]; then
   python3 -I $T/fake-upower.py &
-  export RICE_BAR_UPOWER_BUS=session RICE_BAR_HOT_PERCENT=0 RICE_BAR_BUDS=${RICE_BAR_BUDS:-$T/fake-buds}
+  export REDLINE_UPOWER_BUS=session REDLINE_HOT_PERCENT=0 REDLINE_BUDS=${REDLINE_BUDS:-$T/fake-buds}
 fi
-if [[ -n "${RICE_BAR_TEST_CALENDAR:-}" ]]; then
+if [[ -n "${REDLINE_TEST_CALENDAR:-}" ]]; then
   python3 -I $T/fake-calendar.py &
-  export RICE_BAR_TAG=calendar
+  export REDLINE_TAG=calendar
   sleep 1  # own the name before the shell asks for it
 fi
 gnome-shell --headless --wayland --virtual-monitor 1920x1080 --mode=ubuntu > $T/out/shell.log 2>&1 &
@@ -402,5 +402,5 @@ fi
 
 grep -h ABORT "$T/out/session.log" >&2 || true
 cat "$T/out/probe.txt" "$T/out/workspaces.txt" "$T/out/cycle.txt" "$T/out/error.txt" 2>/dev/null || true
-grep -E 'JS ERROR|rice-bar' "$T/out/shell.log" || true
+grep -E 'JS ERROR|redline' "$T/out/shell.log" || true
 echo "output: $T/out"

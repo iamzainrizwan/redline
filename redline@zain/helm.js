@@ -18,7 +18,7 @@ import GLib from 'gi://GLib';
 
 Gio._promisify(Gio.Subprocess.prototype, 'communicate_utf8_async');
 
-const HELM = GLib.getenv('RICE_BAR_HELM') ??
+const HELM = GLib.getenv('REDLINE_HELM') ??
     GLib.build_filenamev([GLib.get_home_dir(), 'vault', 'helm', 'cli', 'helm']);
 const FALLBACK_URL = 'http://alexandria/helm/api';
 const REFRESH_SECONDS = 300;

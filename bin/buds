@@ -7,7 +7,7 @@
   buds cycle                nc -> trans -> off -> nc (like the stem gesture)
   buds ldac|aac             codec the buds offer (they reboot, ~7 s)
   buds dual on|off          dual connection (multipoint)
-  buds --json [mode]        same, as JSON (the rice bar's buds card reads it)
+  buds --json [mode]        same, as JSON (redline's buds card reads it)
 
 Talks Nothing's "NT LINK" RFCOMM service (UUID aeac4a03-...), the one the
 Nothing X app uses: frames are 55 60 01 <cmd le16> <len le16> <seq> <payload>

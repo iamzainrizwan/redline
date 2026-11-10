@@ -51,25 +51,25 @@ class TrackCard {
         this._artUrl = null;
 
         this.actor = new St.BoxLayout({
-            style_class: 'rice-np-card', vertical: true, visible: false,
+            style_class: 'redline-np-card', vertical: true, visible: false,
         });
-        const row = new St.BoxLayout({style_class: 'rice-np-card-row'});
-        this._art = new St.Icon({style_class: 'rice-np-art', icon_size: ART_SIZE});
+        const row = new St.BoxLayout({style_class: 'redline-np-card-row'});
+        this._art = new St.Icon({style_class: 'redline-np-art', icon_size: ART_SIZE});
         this._noArt = new St.Label({
-            text: ICON, style_class: 'rice-np-noart',
+            text: ICON, style_class: 'redline-np-noart',
             x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER,
         });
         this._artBox = new St.Bin({
-            style_class: 'rice-np-artbox', width: ART_SIZE, height: ART_SIZE,
+            style_class: 'redline-np-artbox', width: ART_SIZE, height: ART_SIZE,
             y_align: Clutter.ActorAlign.START,
         });
         const text = new St.BoxLayout({
             vertical: true, width: TEXT_WIDTH,
             y_align: Clutter.ActorAlign.CENTER,
         });
-        this._title = new St.Label({style_class: 'rice-np-title'});
-        this._artist = new St.Label({style_class: 'rice-np-artist'});
-        this._album = new St.Label({style_class: 'rice-np-album'});
+        this._title = new St.Label({style_class: 'redline-np-title'});
+        this._artist = new St.Label({style_class: 'redline-np-artist'});
+        this._album = new St.Label({style_class: 'redline-np-album'});
         // long titles wrap in the card rather than getting cut again
         this._title.clutter_text.line_wrap = true;
         this._title.width = TEXT_WIDTH;
@@ -78,20 +78,20 @@ class TrackCard {
         row.add_child(this._artBox);
         row.add_child(text);
         this._trough = new St.Widget({
-            style_class: 'rice-np-trough', x_expand: true,
+            style_class: 'redline-np-trough', x_expand: true,
             layout_manager: new Clutter.BinLayout(),
         });
         this._fill = new St.Widget({
-            style_class: 'rice-np-fill', x_expand: true, y_expand: true,
+            style_class: 'redline-np-fill', x_expand: true, y_expand: true,
             pivot_point: new Graphene.Point({x: 0, y: 0}), scale_x: 0,
         });
         this._trough.add_child(this._fill);
-        this._times = new St.BoxLayout({style_class: 'rice-np-times'});
-        this._elapsed = new St.Label({style_class: 'rice-np-elapsed', x_expand: true});
-        this._total = new St.Label({style_class: 'rice-np-total'});
+        this._times = new St.BoxLayout({style_class: 'redline-np-times'});
+        this._elapsed = new St.Label({style_class: 'redline-np-elapsed', x_expand: true});
+        this._total = new St.Label({style_class: 'redline-np-total'});
         this._times.add_child(this._elapsed);
         this._times.add_child(this._total);
-        const progress = new St.BoxLayout({style_class: 'rice-np-progress', vertical: true});
+        const progress = new St.BoxLayout({style_class: 'redline-np-progress', vertical: true});
         progress.add_child(this._trough);
         progress.add_child(this._times);
         this.actor.add_child(row);
@@ -195,11 +195,11 @@ export const NowPlaying = GObject.registerClass(
 class NowPlaying extends PanelMenu.Button {
     _init() {
         super._init(0.0, 'now playing', true);
-        this.add_style_class_name('rice-nowplaying');
+        this.add_style_class_name('redline-nowplaying');
         const box = new St.BoxLayout();
         this._icon = new St.Label({
             text: ICON,
-            style_class: 'rice-np-icon',
+            style_class: 'redline-np-icon',
             y_align: Clutter.ActorAlign.CENTER,
         });
         this._label = new St.Label({y_align: Clutter.ActorAlign.CENTER});
@@ -248,7 +248,7 @@ class NowPlaying extends PanelMenu.Button {
                         .forEach(n => this._add(n));
                 } catch (e) {
                     if (!isCancelled(e))
-                        logError(e, 'rice-bar: listing MPRIS players');
+                        logError(e, 'redline: listing MPRIS players');
                 }
             });
 
@@ -282,7 +282,7 @@ class NowPlaying extends PanelMenu.Button {
                     proxy = Gio.DBusProxy.new_for_bus_finish(res);
                 } catch (e) {
                     if (!isCancelled(e))
-                        logError(e, `rice-bar: MPRIS proxy for ${name}`);
+                        logError(e, `redline: MPRIS proxy for ${name}`);
                     return;
                 }
                 if (!this._wanted.has(name)) // left while we were connecting

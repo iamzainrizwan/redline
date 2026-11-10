@@ -10,7 +10,7 @@
 // The live setting is red. A codec switch reboots the buds (~10 s). bin/buds does the talking (the buds' own Bluetooth
 // protocol, no app); each hover re-reads the mode, since the stems change
 // it too. Calls run one at a time, as the buds take one link at a time.
-// RICE_BAR_BUDS points it at another script (the test's fake).
+// REDLINE_BUDS points it at another script (the test's fake).
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
@@ -20,7 +20,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {placeUnder} from './util.js';
 
 // bin/buds, as install.sh puts it on PATH (~/.local/bin)
-const BUDS = GLib.getenv('RICE_BAR_BUDS') ??
+const BUDS = GLib.getenv('REDLINE_BUDS') ??
     GLib.find_program_in_path('buds') ??
     GLib.build_filenamev([GLib.get_home_dir(), '.local', 'bin', 'buds']);
 
@@ -46,12 +46,12 @@ export class BudsCard {
         this._dual = null;
 
         this.actor = new St.BoxLayout({
-            style_class: 'rice-buds-card', vertical: true, visible: false,
+            style_class: 'redline-buds-card', vertical: true, visible: false,
             reactive: true, track_hover: true,
         });
-        const head = new St.BoxLayout({style_class: 'rice-buds-head'});
-        this._name = new St.Label({style_class: 'rice-buds-name', x_expand: true});
-        this._battery = new St.Label({style_class: 'rice-buds-battery'});
+        const head = new St.BoxLayout({style_class: 'redline-buds-head'});
+        this._name = new St.Label({style_class: 'redline-buds-name', x_expand: true});
+        this._battery = new St.Label({style_class: 'redline-buds-battery'});
         head.add_child(this._name);
         head.add_child(this._battery);
         this.actor.add_child(head);
@@ -81,11 +81,11 @@ export class BudsCard {
 
     // key: null (noise modes), 'strength', 'codec' or 'dual'
     _row(key, modes) {
-        const row = new St.BoxLayout({style_class: 'rice-buds-row'});
+        const row = new St.BoxLayout({style_class: 'redline-buds-row'});
         if (key)
-            row.add_child(new St.Label({text: key, style_class: 'rice-buds-key'}));
+            row.add_child(new St.Label({text: key, style_class: 'redline-buds-key'}));
         for (const [mode, text] of modes) {
-            const b = new St.Button({label: text, style_class: 'rice-buds-mode'});
+            const b = new St.Button({label: text, style_class: 'redline-buds-mode'});
             b._mode = mode;
             b._key = key;
             b.connect('clicked', () => this._run(key === 'dual' ? ['dual', mode] : [mode]));

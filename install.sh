@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install rice bar for the current user, or take it out again.
+# Install redline for the current user, or take it out again.
 #
 #   ./install.sh              copy the extension and scripts in and enable it
 #                             (again: update them)
@@ -7,14 +7,14 @@
 #                             updates it (still only loads after logging out)
 #   ./install.sh --uninstall  disable it and remove what was installed
 #
-# BIN=dir puts rice-osd and buds somewhere other than ~/.local/bin.
+# BIN=dir puts redline-osd and buds somewhere other than ~/.local/bin.
 set -euo pipefail
 
 cd "$(dirname "$(readlink -f "$0")")"
-UUID=rice-bar@zain
+UUID=redline@zain
 BIN=${BIN:-$HOME/.local/bin}
 EXT=${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions/$UUID
-SCRIPTS=(rice-osd buds)
+SCRIPTS=(redline-osd buds)
 
 # only remove an extension dir that is this one (a link, or our metadata)
 clear_ext() {
@@ -22,7 +22,7 @@ clear_ext() {
     rm "$EXT"
   elif [[ -d $EXT ]]; then
     grep -q "\"uuid\": \"$UUID\"" "$EXT/metadata.json" 2>/dev/null ||
-      { echo "$EXT isn't rice bar; leaving it" >&2; exit 1; }
+      { echo "$EXT isn't redline; leaving it" >&2; exit 1; }
     rm -r "$EXT"
   fi
 }

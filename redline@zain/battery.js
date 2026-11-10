@@ -27,10 +27,10 @@ export const Battery = GObject.registerClass(
 class Battery extends PanelMenu.Button {
     _init() {
         super._init(0.0, 'battery', true);
-        this.add_style_class_name('rice-battery');
+        this.add_style_class_name('redline-battery');
         this.setSensitive(false);
         this.hide();
-        const box = new St.BoxLayout({style_class: 'rice-pairs'});
+        const box = new St.BoxLayout({style_class: 'redline-pairs'});
         this.add_child(box);
         [this._keyLabel, this._value] = addPair(box, 'bat');
 
@@ -43,7 +43,7 @@ class Battery extends PanelMenu.Button {
                     this._proxy = Gio.DBusProxy.new_for_bus_finish(res);
                 } catch (e) {
                     if (!isCancelled(e))
-                        logError(e, 'rice-bar: UPower');
+                        logError(e, 'redline: UPower');
                     return;
                 }
                 this._proxy.connectObject('g-properties-changed', () => this._update(), this);

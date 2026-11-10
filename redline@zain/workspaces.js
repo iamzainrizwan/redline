@@ -15,7 +15,7 @@ export const Workspaces = GObject.registerClass(
 class Workspaces extends PanelMenu.Button {
     _init() {
         super._init(0.0, 'workspaces', true);
-        this.add_style_class_name('rice-workspaces');
+        this.add_style_class_name('redline-workspaces');
         this._box = new St.BoxLayout();
         this.add_child(this._box);
         this._watched = [];
@@ -73,7 +73,7 @@ class Workspaces extends PanelMenu.Button {
 
             const button = new St.Button({
                 label: `${i + 1}`,
-                style_class: 'rice-ws',
+                style_class: 'redline-ws',
                 y_align: Clutter.ActorAlign.CENTER,
             });
             if (occupied)

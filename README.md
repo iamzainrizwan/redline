@@ -1,4 +1,4 @@
-# rice bar
+# redline
 
 A GNOME Shell extension that turns the top bar into something like tmux's
 status line: a tag block on the left, workspaces as tmux windows, the focused
@@ -45,7 +45,7 @@ Left to right:
   only when muted.
 
 It also pops GNOME's OSD box (the volume one) when the keyboard layout
-changes, and when a script asks it to with [`rice-osd`](#rice-osd).
+changes, and when a script asks it to with [`redline-osd`](#redline-osd).
 
 ## The tag
 
@@ -65,9 +65,9 @@ The tag gets its day from a source module:
   shows what a richer source looks like: ranked tiers, and red for missed
   blocks.
 
-`RICE_BAR_TAG=calendar|helm` forces one. A source is a small class in
-`rice-bar@zain/` with `fetch()` and `view()`; the interface is described at
-the top of [`tag.js`](rice-bar@zain/tag.js), so adding another (a todo list,
+`REDLINE_TAG=calendar|helm` forces one. A source is a small class in
+`redline@zain/` with `fetch()` and `view()`; the interface is described at
+the top of [`tag.js`](redline@zain/tag.js), so adding another (a todo list,
 a CI status) is one file plus a line in `pickSource()`.
 
 ## Requirements
@@ -83,8 +83,8 @@ a CI status) is one file plus a line in `pickSource()`.
 ## Install
 
 ```sh
-git clone https://github.com/iamzainrizwan/rice-bar
-cd rice-bar
+git clone https://github.com/iamzainrizwan/redline
+cd redline
 ./install.sh --link   # or ./install.sh to copy instead of symlinking
 ```
 
@@ -94,14 +94,14 @@ login. `--link` symlinks the clone, so `git pull` plus a re-login updates it.
 
 It installs two scripts into `~/.local/bin` (`BIN=dir` to change that):
 
-### rice-osd
+### redline-osd
 
 ```sh
-rice-osd video-display-symbolic "60 Hz"
+redline-osd video-display-symbolic "60 Hz"
 ```
 
 Pops GNOME's OSD box from any script. Scripts can't call the shell's ShowOSD
-themselves, so this writes to `$XDG_RUNTIME_DIR/rice-osd` and the bar shows
+themselves, so this writes to `$XDG_RUNTIME_DIR/redline-osd` and the bar shows
 it. Unlike `notify-send`, it shows under Do Not Disturb.
 
 ### buds
@@ -119,7 +119,7 @@ the bar drops a card to switch modes, codec and dual connection.
 ## Testing
 
 ```sh
-bin/rice-bar-test
+bin/redline-test
 ```
 
 Runs the extension in a throwaway headless GNOME Shell with its own D-Bus
@@ -130,12 +130,12 @@ Environment variables add fakes:
 
 | Variable | What it does |
 | --- | --- |
-| `RICE_BAR_TEST_UPOWER=1` | a fake battery, headphones and mouse; forces the cpu/mem alerts and live/mic tags on |
-| `RICE_BAR_TEST_CALENDAR=1` | a fake calendar server with four events today, on the calendar tag |
-| `RICE_BAR_TEST_TRACK='title'` | the fake player's track title |
-| `RICE_BAR_TEST_HOVER=<role>` | draw that panel item hovered (`rice-tag`, `rice-nowplaying`, `dateMenu`) |
-| `RICE_BAR_TEST_OPEN=<role>` | open that item's menu (`quickSettings`) |
-| `RICE_BAR_TEST_SHOW=overview\|apps\|lock` | screenshot with the overview, app grid or lock screen up |
+| `REDLINE_TEST_UPOWER=1` | a fake battery, headphones and mouse; forces the cpu/mem alerts and live/mic tags on |
+| `REDLINE_TEST_CALENDAR=1` | a fake calendar server with four events today, on the calendar tag |
+| `REDLINE_TEST_TRACK='title'` | the fake player's track title |
+| `REDLINE_TEST_HOVER=<role>` | draw that panel item hovered (`redline-tag`, `redline-nowplaying`, `dateMenu`) |
+| `REDLINE_TEST_OPEN=<role>` | open that item's menu (`quickSettings`) |
+| `REDLINE_TEST_SHOW=overview\|apps\|lock` | screenshot with the overview, app grid or lock screen up |
 
 The isolation only holds because the XDG variables are set before
 `dbus-run-session` starts: dconf inherits the bus daemon's environment, so

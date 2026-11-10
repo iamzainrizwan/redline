@@ -34,7 +34,7 @@ const Tag = GObject.registerClass(
 class Tag extends PanelMenu.Button {
     _init(name, onClick = null) {
         super._init(0.0, name, true);
-        this.add_style_class_name('rice-alert');
+        this.add_style_class_name('redline-alert');
         this._label = new St.Label({y_align: Clutter.ActorAlign.CENTER});
         this.add_child(this._label);
         this.hide();
@@ -134,10 +134,10 @@ export const MicInUse = GObject.registerClass(
 class MicInUse extends PanelMenu.Button {
     _init() {
         super._init(0.0, 'mic in use', true);
-        this.add_style_class_name('rice-micuse');
+        this.add_style_class_name('redline-micuse');
         this.setSensitive(false);
         this.hide();
-        const box = new St.BoxLayout({style_class: 'rice-pairs'});
+        const box = new St.BoxLayout({style_class: 'redline-pairs'});
         this.add_child(box);
         [, this._value] = addPair(box, 'mic');
         this._value.add_style_class_name('hot');

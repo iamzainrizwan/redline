@@ -10,8 +10,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: shellcheck
-        run: shellcheck install.sh bin/rice-osd bin/rice-bar-test
+        run: shellcheck install.sh bin/redline-osd bin/redline-test
       - name: python syntax
         run: python3 -c "compile(open('bin/buds').read(), 'bin/buds', 'exec')"
       - name: js syntax
-        run: for f in rice-bar@zain/*.js; do node --check --input-type=module < "$f" || exit 1; done
+        run: for f in redline@zain/*.js; do node --check --input-type=module < "$f" || exit 1; done

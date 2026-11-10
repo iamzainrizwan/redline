@@ -11,8 +11,8 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import {addPair} from './util.js';
 
 const INTERVAL_SECONDS = 2;
-// rice-bar-test sets it to 0 to draw the alerts
-const HOT_PERCENT = Number(GLib.getenv('RICE_BAR_HOT_PERCENT') ?? 85);
+// redline-test sets it to 0 to draw the alerts
+const HOT_PERCENT = Number(GLib.getenv('REDLINE_HOT_PERCENT') ?? 85);
 // cpu must stay hot this many reads in a row (6 s), so a build or a page
 // load doesn't flash it up for a moment; memory doesn't spike like that
 const CPU_HOT_READS = 3;
@@ -28,9 +28,9 @@ export const Stats = GObject.registerClass(
 class Stats extends PanelMenu.Button {
     _init() {
         super._init(0.0, 'system stats', true);
-        this.add_style_class_name('rice-stats');
+        this.add_style_class_name('redline-stats');
         this.setSensitive(false);
-        const box = new St.BoxLayout({style_class: 'rice-pairs'});
+        const box = new St.BoxLayout({style_class: 'redline-pairs'});
         this.add_child(box);
         this._cpu = addPair(box, 'cpu');
         this._mem = addPair(box, 'mem');
@@ -60,7 +60,7 @@ class Stats extends PanelMenu.Button {
             this._cpu[1].style = mem ? null : 'padding-right: 0;';
             this.visible = cpu || mem;
         } catch (e) {
-            logError(e, 'rice-bar: reading /proc');
+            logError(e, 'redline: reading /proc');
         }
     }
 

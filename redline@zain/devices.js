@@ -43,10 +43,10 @@ export const Devices = GObject.registerClass(
 class Devices extends PanelMenu.Button {
     _init() {
         super._init(0.0, 'device batteries', true);
-        this.add_style_class_name('rice-devices');
+        this.add_style_class_name('redline-devices');
         this.setSensitive(false);
         this.hide();
-        this._box = new St.BoxLayout({style_class: 'rice-pairs'});
+        this._box = new St.BoxLayout({style_class: 'redline-pairs'});
         this.add_child(this._box);
         this._budsCard = new BudsCard(this);
 
@@ -73,7 +73,7 @@ class Devices extends PanelMenu.Button {
             paths.forEach(path => this._add(path));
         } catch (e) {
             if (!isCancelled(e))
-                logError(e, 'rice-bar: UPower devices');
+                logError(e, 'redline: UPower devices');
         }
     }
 
@@ -92,7 +92,7 @@ class Devices extends PanelMenu.Button {
             this._update();
         } catch (e) {
             if (!isCancelled(e))
-                logError(e, `rice-bar: UPower device ${path}`);
+                logError(e, `redline: UPower device ${path}`);
         }
     }
 

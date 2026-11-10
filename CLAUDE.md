@@ -2,15 +2,15 @@
 
 Guidance for Claude Code in this repo. A public repo that only runs on Zain's machine: commit and push
 straight to main, no PRs and no worktree branches left lying around. It was split out of `~/rice`
-(history included) on 2026-11-10.
+(history included) on 2026-11-10 as rice-bar and renamed redline the same day.
 
 ## Install and layout
 
-- Installed with `./install.sh --link`: `~/.local/share/gnome-shell/extensions/rice-bar@zain` is a
-  link to `rice-bar@zain/` here, and `bin/rice-osd` and `bin/buds` are linked into `~/.local/bin`.
-  The rice scripts call `~/.local/bin/rice-osd`.
+- Installed with `./install.sh --link`: `~/.local/share/gnome-shell/extensions/redline@zain` is a
+  link to `redline@zain/` here, and `bin/redline-osd` and `bin/buds` are linked into `~/.local/bin`.
+  The rice scripts call `~/.local/bin/redline-osd`.
 - GNOME 46 on Wayland only loads a changed extension after a logout. Test changes with
-  `bin/rice-bar-test` (headless shell, isolated bus and dconf; keep its two isolation guards) and look
+  `bin/redline-test` (headless shell, isolated bus and dconf; keep its two isolation guards) and look
   at the screenshots it writes.
 - The tag (`tag.js`) takes pluggable sources: `helm.js` (Zain's planner CLI, picked when it exists)
   and `calendar.js` (GNOME's calendar via the clock menu's `_eventSource`; never open a second

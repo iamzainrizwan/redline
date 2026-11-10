@@ -1,4 +1,4 @@
-/* rice bar — black/red/grey palette (README), modelled on tmux.conf's status line:
+/* redline — black/red/grey palette (README), modelled on tmux.conf's status line:
  * bg on the panel, red blocks for the session (host) and current window
  * (workspace), comment-grey for the rest, fg for values. */
 
@@ -74,7 +74,7 @@
 /* the tag ([helm 14:30 leetcode] /  14:00 standup) — a dark block; red (like
  * tmux's session name) when it's hot: a missed block, an event on now. Falls
  * back to the hostname. */
-#panel .panel-button.rice-tag {
+#panel .panel-button.redline-tag {
   background-color: #1a1a1a;
   color: #e0e0e0;
   font-weight: bold;
@@ -84,21 +84,21 @@
   margin-right: 8px;
 }
 
-#panel .panel-button.rice-tag:hover {
+#panel .panel-button.redline-tag:hover {
   background-color: #333333;
 }
 
-#panel .panel-button.rice-tag.hot {
+#panel .panel-button.redline-tag.hot {
   background-color: #cc2222;
   color: #000000;
 }
 
-#panel .panel-button.rice-tag.hot:hover {
+#panel .panel-button.redline-tag.hot:hover {
   background-color: #e03333;
 }
 
 /* the day's blocks / events, under the tag on hover */
-.rice-tag-card {
+.redline-tag-card {
   font-family: "BlexMono Nerd Font", monospace;
   background-color: #0a0a0a;
   border: 1px solid #333333;
@@ -106,98 +106,98 @@
   spacing: 4px;
 }
 
-.rice-tag-head {
+.redline-tag-head {
   color: #666666;
   padding-bottom: 4px;
 }
 
-.rice-tag-tier {
+.redline-tag-tier {
   color: #444444;
   padding-top: 4px;
 }
 
-.rice-tag-row {
+.redline-tag-row {
   spacing: 12px;
   color: #e0e0e0;
 }
 
-.rice-tag-row.hot {
+.redline-tag-row.hot {
   color: #ff4444;
 }
 
-.rice-tag-row.dim {
+.redline-tag-row.dim {
   color: #666666;
 }
 
-.rice-tag-at {
+.redline-tag-at {
   width: 5em;
 }
 
-.rice-tag-project {
+.redline-tag-project {
   width: 10em;
   color: #666666;
 }
 
-.rice-tag-row.hot .rice-tag-project {
+.redline-tag-row.hot .redline-tag-project {
   color: #cc2222;
 }
 
-.rice-tag-row.dim .rice-tag-project {
+.redline-tag-row.dim .redline-tag-project {
   color: #444444;
 }
 
 /* live / rec 0:42 / mic off — loud red blocks */
-#panel .panel-button.rice-alert {
+#panel .panel-button.redline-alert {
   background-color: #cc2222;
   color: #000000;
   font-weight: bold;
   margin-left: 8px;
 }
 
-#panel .panel-button.rice-alert:hover {
+#panel .panel-button.redline-alert:hover {
   background-color: #e03333;
 }
 
 /* 1 [2] 3 */
-#panel .panel-button.rice-workspaces,
-#panel .panel-button.rice-workspaces:hover {
+#panel .panel-button.redline-workspaces,
+#panel .panel-button.redline-workspaces:hover {
   background-color: transparent;
   -natural-hpadding: 4px;
 }
 
-.rice-ws {
+.redline-ws {
   color: #444444;
   padding: 0 7px;
   border-radius: 0;
 }
 
-.rice-ws.occupied {
+.redline-ws.occupied {
   color: #e0e0e0;
 }
 
-.rice-ws:hover {
+.redline-ws:hover {
   background-color: #1a1a1a;
 }
 
-.rice-ws.active,
-.rice-ws.active:hover {
+.redline-ws.active,
+.redline-ws.active:hover {
   background-color: #cc2222;
   color: #000000;
   font-weight: bold;
 }
 
 /* focused window */
-#panel .panel-button.rice-title {
+#panel .panel-button.redline-title {
   color: #666666;
 }
 
 /* hoverable only for its tooltip — don't look like a button */
-#panel .panel-button.rice-title:hover {
+#panel .panel-button.redline-title:hover {
   background-color: transparent;
 }
 
 /* full text of a cut-off title / track, under the segment on hover */
-.rice-tooltip {
+.redline-tooltip {
   font-family: "BlexMono Nerd Font", monospace;
   color: #e0e0e0;
   background-color: #0a0a0a;
@@ -208,13 +208,13 @@
 /* now playing */
 /* 16px: the music glyph overhangs its advance by ~8px, so 8px left the
  * icon touching the text */
-.rice-np-icon {
+.redline-np-icon {
   color: #cc2222;
   padding-right: 16px;
 }
 
 /* hover card: art | title / artist / album, progress bar along the bottom */
-.rice-np-card {
+.redline-np-card {
   font-family: "BlexMono Nerd Font", monospace;
   background-color: #0a0a0a;
   border: 1px solid #333333;
@@ -222,56 +222,56 @@
   spacing: 10px;
 }
 
-.rice-np-card-row {
+.redline-np-card-row {
   spacing: 12px;
 }
 
-.rice-np-artbox {
+.redline-np-artbox {
   background-color: #1a1a1a;
 }
 
-.rice-np-noart {
+.redline-np-noart {
   color: #444444;
   font-size: 24px;
 }
 
-.rice-np-title {
+.redline-np-title {
   color: #e0e0e0;
   font-weight: bold;
 }
 
-.rice-np-artist {
+.redline-np-artist {
   color: #e0e0e0;
 }
 
-.rice-np-album {
+.redline-np-album {
   color: #666666;
 }
 
-.rice-np-trough {
+.redline-np-trough {
   background-color: #222222;
   height: 3px;
 }
 
-.rice-np-fill {
+.redline-np-fill {
   background-color: #cc2222;
 }
 
-.rice-np-progress {
+.redline-np-progress {
   spacing: 4px;
 }
 
-.rice-np-times {
+.redline-np-times {
   color: #666666;
   font-size: 0.9em;
 }
 
-.rice-np-card.paused .rice-np-fill {
+.redline-np-card.paused .redline-np-fill {
   background-color: #444444;
 }
 
-#panel .panel-button.rice-nowplaying.paused,
-#panel .panel-button.rice-nowplaying.paused .rice-np-icon {
+#panel .panel-button.redline-nowplaying.paused,
+#panel .panel-button.redline-nowplaying.paused .redline-np-icon {
   color: #444444;
 }
 
@@ -279,40 +279,40 @@
  * gap between pairs. The wide gap matches the space between two panel
  * buttons (8px padding each side), so pairs in one segment and pairs in
  * the next segment sit the same distance apart. */
-.rice-pairs {
+.redline-pairs {
   spacing: 0;
 }
 
-.rice-key {
+.redline-key {
   color: #666666;
   padding-right: 6px;
 }
 
-.rice-val {
+.redline-val {
   color: #e0e0e0;
   padding-right: 16px;
 }
 
-.rice-val:last-child {
+.redline-val:last-child {
   padding-right: 0;
 }
 
-.rice-val.hot {
+.redline-val.hot {
   color: #ff4444;
   font-weight: bold;
 }
 
 /* stands in for quick settings' icons while none is showing */
-.rice-qs-handle {
+.redline-qs-handle {
   color: #666666;
 }
 
-#panel .panel-button:hover .rice-qs-handle {
+#panel .panel-button:hover .redline-qs-handle {
   color: #e0e0e0;
 }
 
 /* noise modes of Nothing / CMF buds, under the hp % on hover (buds.js) */
-.rice-buds-card {
+.redline-buds-card {
   font-family: "BlexMono Nerd Font", monospace;
   background-color: #0a0a0a;
   border: 1px solid #333333;
@@ -320,45 +320,45 @@
   spacing: 6px;
 }
 
-.rice-buds-head {
+.redline-buds-head {
   spacing: 24px;
   padding-bottom: 2px;
 }
 
-.rice-buds-name {
+.redline-buds-name {
   color: #e0e0e0;
 }
 
-.rice-buds-battery {
+.redline-buds-battery {
   color: #666666;
 }
 
-.rice-buds-battery:busy {
+.redline-buds-battery:busy {
   color: #444444;
 }
 
-.rice-buds-row {
+.redline-buds-row {
   spacing: 4px;
 }
 
-.rice-buds-key {
+.redline-buds-key {
   color: #444444;
   padding: 2px 6px 2px 0;
   min-width: 72px; /* "strength", so the keyed rows' buttons line up */
 }
 
-.rice-buds-mode {
+.redline-buds-mode {
   color: #666666;
   padding: 2px 8px;
   border: 1px solid #222222;
 }
 
-.rice-buds-mode:hover {
+.redline-buds-mode:hover {
   color: #e0e0e0;
   background-color: #1a1a1a;
 }
 
-.rice-buds-mode:checked {
+.redline-buds-mode:checked {
   color: #ffffff;
   background-color: #cc2222;
   border-color: #cc2222;

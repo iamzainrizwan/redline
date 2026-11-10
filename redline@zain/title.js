@@ -31,7 +31,7 @@ export const WindowTitle = GObject.registerClass(
 class WindowTitle extends PanelMenu.Button {
     _init() {
         super._init(0.0, 'window title', true);
-        this.add_style_class_name('rice-title');
+        this.add_style_class_name('redline-title');
         this.can_focus = false; // no menu, so clicks already do nothing
         this._label = new St.Label({y_align: Clutter.ActorAlign.CENTER});
         this.add_child(this._label);

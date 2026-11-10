@@ -1,11 +1,11 @@
-// rice bar: turns GNOME's top bar into something like the tmux status line.
+// redline: turns GNOME's top bar into something like the tmux status line.
 //
 //   left:  [ 14:00 standup] 1 [2] 3  focused window   (the tag: tag.js)
 //   right: ♪ now playing  [cpu/mem alerts]  hp 80%  bat 87% 3:12  [live] [mic off]
 //          [quick settings]  clock
 //
 // Changing keyboard layout (US/UK) pops GNOME's OSD box with its name, and
-// scripts can pop it too with bin/rice-osd (riceosd.js).
+// scripts can pop it too with bin/redline-osd (osd.js).
 //
 // Only the segments are new. Quick settings and the calendar menu are
 // GNOME's own (the clock is moved from the centre to the far right); the
@@ -30,7 +30,7 @@ import {Devices} from './devices.js';
 import {Battery} from './battery.js';
 import {Live, MicInUse, MicOff} from './live.js';
 import {LayoutOsd} from './layoutosd.js';
-import {RiceOsd} from './riceosd.js';
+import {Osd} from './osd.js';
 import {gateIcon} from './util.js';
 
 // network icons that need no attention: strong wifi, a working cable
@@ -40,24 +40,24 @@ const QS_HANDLE = '\uf1de'; // nf-fa-sliders
 
 const SEGMENTS = [
     // role, class, box, position
-    ['rice-tag', Tag, 'left', 0],
-    ['rice-workspaces', Workspaces, 'left', 1],
-    ['rice-title', WindowTitle, 'left', 2],
-    ['rice-nowplaying', NowPlaying, 'right', 0],
-    ['rice-stats', Stats, 'right', 1],
-    ['rice-devices', Devices, 'right', 2],
-    ['rice-battery', Battery, 'right', 3],
-    ['rice-micuse', MicInUse, 'right', 4],
-    ['rice-live', Live, 'right', 5],
-    ['rice-micoff', MicOff, 'right', 6],
+    ['redline-tag', Tag, 'left', 0],
+    ['redline-workspaces', Workspaces, 'left', 1],
+    ['redline-title', WindowTitle, 'left', 2],
+    ['redline-nowplaying', NowPlaying, 'right', 0],
+    ['redline-stats', Stats, 'right', 1],
+    ['redline-devices', Devices, 'right', 2],
+    ['redline-battery', Battery, 'right', 3],
+    ['redline-micuse', MicInUse, 'right', 4],
+    ['redline-live', Live, 'right', 5],
+    ['redline-micoff', MicOff, 'right', 6],
 ];
 
-export default class RiceBarExtension extends Extension {
+export default class RedlineExtension extends Extension {
     enable() {
         this._segments = SEGMENTS.map(([role, Segment, box, position]) =>
             Main.panel.addToStatusArea(role, new Segment(), position, box));
         this._layoutOsd = new LayoutOsd();
-        this._riceOsd = new RiceOsd();
+        this._osd = new Osd();
 
         // the tag opens the overview instead
         Main.panel.statusArea.activities.container.hide();
@@ -89,7 +89,7 @@ export default class RiceBarExtension extends Extension {
 
         // GNOME's sharing/recording icons → the red live tag (which also
         // stops them on click)
-        const live = Main.panel.statusArea['rice-live'];
+        const live = Main.panel.statusArea['redline-live'];
         const {screenSharing, screenRecording} = Main.panel.statusArea;
         if (screenSharing)
             this._ungates.push(gateIcon(screenSharing, () => false, on => live.setSharing(on)));
@@ -106,8 +106,8 @@ export default class RiceBarExtension extends Extension {
         this._segments = null;
         this._layoutOsd.destroy();
         this._layoutOsd = null;
-        this._riceOsd.destroy();
-        this._riceOsd = null;
+        this._osd.destroy();
+        this._osd = null;
 
         Main.panel.statusArea.activities.container.show();
 
@@ -138,7 +138,7 @@ export default class RiceBarExtension extends Extension {
         const box = qs._indicators;
         const handle = new St.Label({
             text: QS_HANDLE,
-            style_class: 'rice-qs-handle',
+            style_class: 'redline-qs-handle',
             y_align: Clutter.ActorAlign.CENTER,
         });
         box.add_child(handle);
