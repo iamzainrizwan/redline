@@ -160,6 +160,18 @@ export default class extends Extension {
         await pause(300);
         liveLog.push('gnome shows its icon: ' + liveLine());
         bar.screenSharing?._handles.clear();
+        // a gate with a rule: the volume icon shows only when muted
+        const vol = bar.quickSettings._volumeOutput?._indicator;
+        if (vol) {
+            vol.icon_name = 'audio-volume-high-symbolic';
+            vol.visible = true; // GNOME showing it
+            await pause(200);
+            liveLog.push('volume icon, unmuted: visible=' + vol.visible);
+            vol.icon_name = 'audio-volume-muted-symbolic';
+            await pause(200);
+            liveLog.push('volume icon, muted:   visible=' + vol.visible);
+            vol.icon_name = 'audio-volume-high-symbolic';
+        }
         GLib.file_set_contents(OUT + '/live.txt', liveLog.join('\n') + '\n');
         if (GLib.getenv('REDLINE_TEST_UPOWER')) {
             live._addHandle(new FakeHandle());
@@ -196,7 +208,8 @@ export default class extends Extension {
         const em = Main.extensionManager;
         await em.disableExtension('redline@zain');
         await pause(2000);
-        const disabled = layout();
+        const disabled = [...layout(),
+            'gnome sharing icon visible: ' + bar.screenSharing?.visible + ', recording icon: ' + bar.screenRecording?.visible];
         await em.enableExtension('redline@zain');
         await pause(2000);
         GLib.file_set_contents(OUT + '/cycle.txt', [

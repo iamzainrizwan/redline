@@ -88,12 +88,18 @@ export default class RedlineExtension extends Extension {
         this._ungates = [gateIcon(dateMenu._indicator, () => false)];
 
         // GNOME's sharing/recording icons: the red live tag replaces them
-        // (it watches the same sources itself, see live.js)
+        // (it watches the same sources itself, see live.js). GNOME never
+        // hides an icon it thinks is hidden, so what the gate remembers can
+        // be stale by disable (the lock screen): restore from the source.
         const {screenSharing, screenRecording} = Main.panel.statusArea;
-        if (screenSharing)
-            this._ungates.push(gateIcon(screenSharing, () => false));
-        if (screenRecording)
-            this._ungates.push(gateIcon(screenRecording, () => false));
+        if (screenSharing) {
+            this._ungates.push(gateIcon(screenSharing, () => false,
+                () => (screenSharing._handles?.size ?? 0) > 0));
+        }
+        if (screenRecording) {
+            this._ungates.push(gateIcon(screenRecording, () => false,
+                () => Main.screenshotUI.screencast_in_progress));
+        }
 
         // Quick settings' indicators are built asynchronously at startup,
         // so they may not exist yet when we're enabled on login.

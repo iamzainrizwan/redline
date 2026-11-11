@@ -81,13 +81,14 @@ export const UPOWER_BUS = GLib.getenv('REDLINE_UPOWER_BUS') === 'session'
 
 // Keeps a GNOME status icon hidden unless show(iconName) says otherwise,
 // on top of GNOME's own visibility (remembered, so a hidden icon reappears
-// when GNOME and show() both want it). Returns an undo for disable().
+// when GNOME and show() both want it). Returns an undo for disable(), which
+// puts back the remembered visibility, or truth() when given.
 //
 // GNOME's mind is only half visible from here: an icon it shows that we keep
 // hidden sends nothing when GNOME later hides it (often GNOME only calls
 // hide() if it's visible). So don't read state off a gated icon; watch what
 // GNOME watches (see live.js).
-export function gateIcon(icon, show) {
+export function gateIcon(icon, show, truth = null) {
     let wanted = icon.visible;
     // the value we last set, until its notify arrives: Clutter can deliver
     // it after apply() has returned, so a plain re-entrancy flag misses it
@@ -115,6 +116,6 @@ export function gateIcon(icon, show) {
     apply();
     return () => {
         ids.forEach(id => icon.disconnect(id));
-        icon.visible = wanted;
+        icon.visible = truth?.() ?? wanted;
     };
 }
