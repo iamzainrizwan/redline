@@ -78,8 +78,12 @@ export class HelmSource {
 
         const missed = data.blocks.filter(started);
         const upcoming = data.blocks.filter(b => !started(b));
-        const next = missed[0] ??
-            upcoming.reduce((a, b) => (a && a.at <= b.at ? a : b), null);
+        // a missed floor block first, then the next to start; a missed
+        // stretch block (often untimed, so "started" all day) only when
+        // nothing else is left, or it would hide the next floor block
+        const next = missed.find(b => b.floor) ??
+            upcoming.reduce((a, b) => (a && a.at <= b.at ? a : b), null) ??
+            missed[0];
 
         let label;
         if (next)
