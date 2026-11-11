@@ -116,6 +116,20 @@ Noise control for Nothing and CMF earbuds over their own Bluetooth protocol,
 with no app. When connected buds are ones it knows, hovering their battery in
 the bar drops a card to switch modes, codec and dual connection.
 
+## Environment
+
+The extension reads these from GNOME Shell's environment (set them in
+`~/.config/environment.d/` and log out); the test sets most of them itself.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `REDLINE_TAG` | helm if its CLI exists, else calendar | force the tag's source: `calendar` or `helm` |
+| `REDLINE_HELM` | `~/vault/helm/cli/helm` | path to the helm CLI |
+| `REDLINE_BUDS` | `buds` on `PATH`, else `~/.local/bin/buds` | the script the buds card runs |
+| `REDLINE_HOT_PERCENT` | `85` | the cpu/mem alert threshold |
+| `REDLINE_UPOWER_BUS` | the system bus | `session` reads UPower off the session bus (the test's fake) |
+| `REDLINE_OSD_FILE` | `$XDG_RUNTIME_DIR/redline-osd` | the file `redline-osd` writes and the bar watches |
+
 ## Testing
 
 ```sh

@@ -33,7 +33,9 @@ rice-bar and renamed redline the same day.
   panel: it hides Activities, moves the clock to the far right, and quiets GNOME's icons.
 - `disable()` must undo every change exactly, because the lock screen cycles the extension;
   `redline-test` checks this. GNOME icons are hidden with `gateIcon()` (`util.js`), which returns an
-  undo function that goes into `this._ungates`. Quick settings' indicators are built
+  undo function that goes into `this._ungates`. Never read state off a gated icon: GNOME often only
+  calls `hide()` on a visible icon, so a stop never arrives. Watch GNOME's source instead, like
+  `live.js` does with the remote-access controller and `screenshotUI`. Quick settings' indicators are built
   asynchronously, so `_quietQuickSettings` retries until they exist.
 - The code relies on GNOME Shell private fields (`_rightBox`, `_clockDisplay`, `qs._system`,
   `qs._network`, …). Expect breakage on other shell versions; only 46 is supported.
@@ -48,8 +50,8 @@ rice-bar and renamed redline the same day.
 - Out-of-process helpers: `bin/buds` (Python, the Nothing/CMF Bluetooth protocol) is run by
   `buds.js` for the buds card. `bin/redline-osd` writes `stamp\ticon\ttext` to
   `$XDG_RUNTIME_DIR/redline-osd`, which `osd.js` watches with a file monitor.
-- Runtime env vars, used mostly by the test to inject fakes: `REDLINE_TAG`, `REDLINE_HELM`,
-  `REDLINE_BUDS`, `REDLINE_UPOWER_BUS=session`, `REDLINE_HOT_PERCENT`, `REDLINE_OSD_FILE`. Every new
+- Runtime env vars (README "Environment" table), used mostly by the test to inject fakes:
+  `REDLINE_TAG`, `REDLINE_HELM`, `REDLINE_BUDS`, `REDLINE_UPOWER_BUS=session`, `REDLINE_HOT_PERCENT`, `REDLINE_OSD_FILE`. Every new
   env var or test mode goes in the README.
 
 ## Style
