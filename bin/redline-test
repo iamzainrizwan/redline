@@ -173,6 +173,19 @@ export default class extends Extension {
             vol.icon_name = 'audio-volume-high-symbolic';
         }
         GLib.file_set_contents(OUT + '/live.txt', liveLog.join('\n') + '\n');
+
+        // middle-click on now playing: a minimised player window comes back
+        // (the window process owns a player); a windowless player gets Raise
+        const np = bar['redline-nowplaying'];
+        const win = global.display.focus_window;
+        win?.minimize();
+        await pause(500);
+        const how = await np._raise('org.mpris.MediaPlayer2.windowed');
+        await pause(500);
+        const how2 = await np._raise('org.mpris.MediaPlayer2.fakeplayer');
+        GLib.file_set_contents(OUT + '/raise.txt', 'windowed player: ' + how +
+            ', minimized=' + win?.minimized + ', focus=' + global.display.focus_window?.get_title() +
+            '\nwindowless player: ' + how2 + '\n');
         if (GLib.getenv('REDLINE_TEST_UPOWER')) {
             live._addHandle(new FakeHandle());
             bar['redline-micoff'] && (bar['redline-micoff'].text = 'mic off');
@@ -379,6 +392,13 @@ cat > "$T/window.py" <<'EOF'
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
+from gi.repository import Gio
+# a second (paused) player owned by this window's process, for middle-click
+XML = '<node><interface name="org.mpris.MediaPlayer2.Player"><property name="PlaybackStatus" type="s" access="read"/></interface></node>'
+Gio.bus_own_name(Gio.BusType.SESSION, 'org.mpris.MediaPlayer2.windowed', 0,
+    lambda conn, name: conn.register_object('/org/mpris/MediaPlayer2', Gio.DBusNodeInfo.new_for_xml(XML).interfaces[0],
+        None, lambda *a: GLib.Variant('s', 'Paused'), None), None, None)
+from gi.repository import GLib
 w = Gtk.Window(title='~/rice — nvim')
 w.set_default_size(800, 500)
 w.show_all()
@@ -441,6 +461,6 @@ if [[ $(gsettings get org.gnome.shell enabled-extensions) != "$before" ]]; then
 fi
 
 grep -h ABORT "$T/out/session.log" >&2 || true
-cat "$T/out/probe.txt" "$T/out/live.txt" "$T/out/workspaces.txt" "$T/out/cycle.txt" "$T/out/error.txt" 2>/dev/null || true
+cat "$T/out/probe.txt" "$T/out/live.txt" "$T/out/raise.txt" "$T/out/workspaces.txt" "$T/out/cycle.txt" "$T/out/error.txt" 2>/dev/null || true
 grep -E 'JS ERROR|redline' "$T/out/shell.log" || true
 echo "output: $T/out"

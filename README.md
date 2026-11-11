@@ -28,7 +28,8 @@ Left to right:
   `— App Name` cut. Hover a cut-off title to see all of it.
 - **Now playing:** whatever MPRIS player is playing (Spotify, a browser tab,
   mpv). The artist is dropped when it won't fit. Click to play or pause,
-  scroll to skip, and hover for a card with art, album and a progress bar.
+  scroll to skip, middle-click to jump to its window, and hover for a card
+  with art, album and a progress bar.
 - **cpu / mem:** an alert, not a readout. They show only at 85% or above
   (CPU has to stay there for 6 s, so a page load doesn't flash it).
 - **Device batteries:** `hp 80%  ms 15%`, any Bluetooth or wireless device

@@ -5,7 +5,8 @@
 // still too long.
 // Hover for a card with art, title, artist, album, a progress bar and the
 // time (1:30 … 6:07).
-// Click to play/pause, scroll to skip. Same source as cmatrix-saver's bar.
+// Click to play/pause, scroll to skip, middle-click to jump to the player's
+// window. Same source as cmatrix-saver's bar.
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -29,6 +30,56 @@ const ICON = ''; // nf-fa-music
 const ART_SIZE = 64;
 const TEXT_WIDTH = 230; // the card's text column; the title wraps at this
 const CARD_TITLE_CHARS = 120; // about 5 wrapped lines, so a runaway title can't fill the screen
+
+Gio._promisify(Gio.DBusConnection.prototype, 'call');
+
+// an app's own systemd scope: GNOME launches apps into app-gnome-<id>-N,
+// flatpak into app-flatpak-<id>-N (with its D-Bus proxy, which is what owns
+// a sandboxed player's bus name). Not terminal tabs' scopes, so a player
+// started in a terminal doesn't pick up the terminal.
+const APP_SCOPE = /\/app-(gnome|flatpak)-[^/]+\.scope$/;
+
+// The player's window: the one owned by the process behind its bus name
+// (or a parent, for players that talk MPRIS from a helper process), else
+// one in the same app scope (flatpaks). With several, the one whose title
+// names the track (a browser's playing tab), else the most recently used.
+function playerWindow(pid, title) {
+    const windows = global.get_window_actors().map(a => a.meta_window)
+        .filter(w => !w.skip_taskbar);
+    const pick = own => own.find(w => title && w.get_title()?.includes(title)) ??
+        own.sort((a, b) => b.get_user_time() - a.get_user_time())[0];
+    const scope = cgroupOf(pid);
+    for (let i = 0; pid > 1 && i < 4; i++) {
+        const own = windows.filter(w => w.get_pid() === pid);
+        if (own.length)
+            return pick(own);
+        pid = parentPid(pid);
+    }
+    if (!APP_SCOPE.test(scope))
+        return null;
+    const own = windows.filter(w => cgroupOf(w.get_pid()) === scope);
+    return own.length ? pick(own) : null;
+}
+
+function cgroupOf(pid) {
+    try {
+        const [, bytes] = GLib.file_get_contents(`/proc/${pid}/cgroup`);
+        return new TextDecoder().decode(bytes).match(/^0::(.*)$/m)?.[1] ?? '';
+    } catch {
+        return '';
+    }
+}
+
+function parentPid(pid) {
+    try {
+        const [, bytes] = GLib.file_get_contents(`/proc/${pid}/stat`);
+        // "pid (comm) state ppid ...": comm can hold spaces and parens
+        const stat = new TextDecoder().decode(bytes);
+        return Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1]) || 0;
+    } catch {
+        return 0;
+    }
+}
 
 // microseconds → "6:07", or "1:02:07" from an hour
 function clock(us) {
@@ -253,10 +304,19 @@ class NowPlaying extends PanelMenu.Button {
             });
 
         this.connect('button-press-event', (_actor, event) => {
-            if (event.get_button() !== Clutter.BUTTON_PRIMARY)
+            switch (event.get_button()) {
+            case Clutter.BUTTON_PRIMARY:
+                this._call('PlayPause');
+                return Clutter.EVENT_STOP;
+            case Clutter.BUTTON_MIDDLE: {
+                const proxy = this._current()?.proxy;
+                if (proxy)
+                    this._raise(proxy.get_name()).catch(e => logError(e, 'redline: raising player'));
+                return Clutter.EVENT_STOP;
+            }
+            default:
                 return Clutter.EVENT_PROPAGATE;
-            this._call('PlayPause');
-            return Clutter.EVENT_STOP;
+            }
         });
         this.connect('scroll-event', (_actor, event) => this._onScroll(event));
         this.connect('destroy', () => {
@@ -337,6 +397,29 @@ class NowPlaying extends PanelMenu.Button {
             this.add_style_class_name('paused');
         this.show();
         this._card.set(current.proxy, current.playing, metadata);
+    }
+
+    // Focus the player's window; MPRIS Raise only as a fallback, since
+    // browsers (the usual player) don't implement it. Returns which it did.
+    async _raise(name) {
+        const bus = Gio.DBus.session;
+        let pid = 0;
+        try {
+            [pid] = (await bus.call('org.freedesktop.DBus', '/org/freedesktop/DBus',
+                'org.freedesktop.DBus', 'GetConnectionUnixProcessID',
+                new GLib.Variant('(s)', [name]), new GLib.VariantType('(u)'),
+                Gio.DBusCallFlags.NONE, 1000, null)).deepUnpack();
+        } catch {}
+        const title = this._players.get(name)?.get_cached_property('Metadata')
+            ?.deepUnpack()['xesam:title']?.unpack() ?? '';
+        const window = playerWindow(pid, title);
+        if (window) {
+            Main.activateWindow(window);
+            return 'window';
+        }
+        bus.call(name, MPRIS_PATH, 'org.mpris.MediaPlayer2', 'Raise', null, null,
+            Gio.DBusCallFlags.NONE, -1, null, null);
+        return 'raise';
     }
 
     _call(method) {
