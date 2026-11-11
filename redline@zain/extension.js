@@ -87,14 +87,13 @@ export default class RedlineExtension extends Extension {
         // notification bell (shown when there are unread ones): gone
         this._ungates = [gateIcon(dateMenu._indicator, () => false)];
 
-        // GNOME's sharing/recording icons → the red live tag (which also
-        // stops them on click)
-        const live = Main.panel.statusArea['redline-live'];
+        // GNOME's sharing/recording icons: the red live tag replaces them
+        // (it watches the same sources itself, see live.js)
         const {screenSharing, screenRecording} = Main.panel.statusArea;
         if (screenSharing)
-            this._ungates.push(gateIcon(screenSharing, () => false, on => live.setSharing(on)));
+            this._ungates.push(gateIcon(screenSharing, () => false));
         if (screenRecording)
-            this._ungates.push(gateIcon(screenRecording, () => false, on => live.setRecording(on)));
+            this._ungates.push(gateIcon(screenRecording, () => false));
 
         // Quick settings' indicators are built asynchronously at startup,
         // so they may not exist yet when we're enabled on login.

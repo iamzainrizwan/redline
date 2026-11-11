@@ -56,6 +56,7 @@ EOF
 cat > "$T/data/gnome-shell/extensions/redline-probe@zain/extension.js" <<EOF
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -63,6 +64,12 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 Gio._promisify(Shell.Screenshot.prototype, 'screenshot_area');
 const OUT = '$T/out';
 const pause = ms => new Promise(r => GLib.timeout_add(0, ms, () => { r(); return GLib.SOURCE_REMOVE; }));
+
+// stands in for a MetaRemoteAccessHandle (abstract, so not constructible)
+const FakeHandle = GObject.registerClass({Signals: {stopped: {}}}, class FakeHandle extends GObject.Object {
+    get isRecording() { return false; }
+    stop() { this.emit('stopped'); }
+});
 
 function describe(box) {
     return box.get_children().map(c => {
@@ -134,8 +141,28 @@ export default class extends Extension {
             Main.screenShield.lock(false);
         if (show)
             await pause(2500);
+        // the live tag: a fake remote access handle starts and stops, the way
+        // a portal screen share does (GNOME's own icon must stay hidden)
+        const live = bar['redline-live'];
+        const liveLine = () => 'live text=' + live._label.text + ' visible=' + live.visible +
+            ' gnome icon visible=' + bar.screenSharing?.visible;
+        const share = new FakeHandle();
+        const liveLog = ['before:  ' + liveLine()];
+        live._addHandle(share);
+        await pause(300);
+        liveLog.push('sharing: ' + liveLine());
+        share.emit('stopped');
+        await pause(300);
+        liveLog.push('stopped: ' + liveLine());
+        // GNOME showing its own sharing icon: the gate keeps it hidden
+        bar.screenSharing?._handles.add({stop() {}});
+        bar.screenSharing?._sync();
+        await pause(300);
+        liveLog.push('gnome shows its icon: ' + liveLine());
+        bar.screenSharing?._handles.clear();
+        GLib.file_set_contents(OUT + '/live.txt', liveLog.join('\n') + '\n');
         if (GLib.getenv('REDLINE_TEST_UPOWER')) {
-            bar['redline-live']?.setSharing(true);
+            live._addHandle(new FakeHandle());
             bar['redline-micoff'] && (bar['redline-micoff'].text = 'mic off');
         }
         const hover = GLib.getenv('REDLINE_TEST_HOVER');
@@ -401,6 +428,6 @@ if [[ $(gsettings get org.gnome.shell enabled-extensions) != "$before" ]]; then
 fi
 
 grep -h ABORT "$T/out/session.log" >&2 || true
-cat "$T/out/probe.txt" "$T/out/workspaces.txt" "$T/out/cycle.txt" "$T/out/error.txt" 2>/dev/null || true
+cat "$T/out/probe.txt" "$T/out/live.txt" "$T/out/workspaces.txt" "$T/out/cycle.txt" "$T/out/error.txt" 2>/dev/null || true
 grep -E 'JS ERROR|redline' "$T/out/shell.log" || true
 echo "output: $T/out"

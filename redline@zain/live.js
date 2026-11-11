@@ -3,7 +3,8 @@
 //   rec 0:42  — GNOME's screen recorder is running. Click stops it.
 //   mic off   — the default microphone is muted.
 // They replace GNOME's own small sharing/recording icons (extension.js
-// hides those with gateIcon and feeds their state here).
+// hides those with gateIcon) and watch what those watch: mutter's remote
+// access handles and the screenshot UI's screencast-in-progress.
 //
 // And a quieter pair, mic discord — which apps are listening to a
 // microphone right now (red-bright names, no block); it replaces GNOME's
@@ -12,6 +13,7 @@ import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
+import Meta from 'gi://Meta';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -54,40 +56,52 @@ class Tag extends PanelMenu.Button {
     }
 });
 
-// live / rec: extension.js calls setSharing/setRecording from GNOME's
-// indicators; the recorder's elapsed time is read off its own label.
+// live / rec. Sharing follows GNOME's ScreenSharingIndicator: every remote
+// access handle that isn't the shell's own recorder, Wayland only (on X11
+// sharing can't all be seen, so showing nothing beats a false sense of
+// safety). The recorder's elapsed time is read off GNOME's own label.
 export const Live = GObject.registerClass(
 class Live extends Tag {
     _init() {
         super._init('live', () => {
-            if (this._recording)
+            if (Main.screenshotUI.screencast_in_progress)
                 Main.screenshotUI.stopScreencast();
-            if (this._sharing)
-                Main.panel.statusArea.screenSharing?._stopSharing();
+            this._handles.forEach(h => h.stop());
         });
-        this._sharing = false;
-        this._recording = false;
+        this._handles = new Set();
+        global.backend.get_remote_access_controller()?.connectObject(
+            'new-handle', (_c, handle) => this._addHandle(handle), this);
+        Main.screenshotUI.connectObject(
+            'notify::screencast-in-progress', () => this._sync(), this);
         Main.panel.statusArea.screenRecording?._label?.connectObject(
             'notify::text', () => this._sync(), this);
-    }
-
-    setSharing(sharing) {
-        this._sharing = sharing;
+        this.connect('destroy', () => {
+            this._handles.forEach(h => h.disconnectObject(this));
+            this._handles.clear();
+        });
         this._sync();
     }
 
-    setRecording(recording) {
-        this._recording = recording;
+    _addHandle(handle) {
+        if (!Meta.is_wayland_compositor() || handle.isRecording)
+            return;
+        this._handles.add(handle);
+        handle.connectObject('stopped', () => {
+            handle.disconnectObject(this);
+            this._handles.delete(handle);
+            this._sync();
+        }, this);
         this._sync();
     }
 
     _sync() {
-        const elapsed = Main.panel.statusArea.screenRecording?._label?.text ?? '';
         const parts = [];
-        if (this._sharing)
+        if (this._handles.size)
             parts.push('live');
-        if (this._recording)
+        if (Main.screenshotUI.screencast_in_progress) {
+            const elapsed = Main.panel.statusArea.screenRecording?._label?.text ?? '';
             parts.push(elapsed ? `rec ${elapsed}` : 'rec');
+        }
         this.text = parts.join(' ');
     }
 });
