@@ -1,15 +1,16 @@
 // Tag source (tag.js) for helm, my day planner: [helm 14:30 leetcode], what
 // to do next, from `helm missed`. Used when the helm CLI is installed.
-// Red when a floor block is missed (unticked and its time has started, or
-// untimed): it names the first, which helm's own ranking (uni > cybersoc > leetcode
+// Red when a floor block is missed (unticked and its end time has passed, or
+// untimed; one that's on now isn't missed yet): it names the first, which helm's own ranking (uni > cybersoc > leetcode
 // > c++ > applications > s3ntry/ledgr, floor before stretch) puts first.
-// Dark when nothing is missed: it names the next block to start. "helm" +
+// Dark when nothing is missed: it names the block on now, else the next to
+// start. "helm" +
 // a tick when the day's blocks are all done. Hover for the list.
 //
 // Data: ~/vault/helm/cli/helm missed --all --json, every REFRESH_SECONDS
-// and on hover; --all adds the blocks that haven't started, and "started"
-// is judged here the way helm judges it (untimed counts; an earlier day
-// has all started). Until DAY_STARTS (05:00) the bar asks for yesterday
+// and on hover; --all adds the blocks that haven't started, and "missed"
+// is judged here by each block's end (untimed counts; an earlier day is
+// all missed). Until DAY_STARTS (05:00) the bar asks for yesterday
 // by date, an hour past helm's own 04:00 rollover. The order is helm's; it's
 // never re-sorted here. If the CLI fails it's retried with HELM_URL set to
 // FALLBACK_URL, and if that fails too the tag falls back to the hostname.
@@ -72,16 +73,23 @@ export class HelmSource {
         const now = GLib.DateTime.new_now_local();
         const today = now.format('%Y-%m-%d');
         const time = now.format('%H:%M');
-        // helm's rule: an earlier day has all started; today, untimed blocks
-        // and ones whose time has come
-        const started = b => data.date < today || !b.at || b.at <= time;
+        // missed: an earlier day, an untimed block (helm's rule), or one
+        // whose end has passed. A block that's on now isn't missed yet: it
+        // goes red only once its time runs out. An end before the start
+        // runs past midnight, so it isn't over today.
+        const over = b => data.date < today || !b.at ||
+            (b.end ? b.end > b.at && b.end <= time : b.at <= time);
+        const on = b => !over(b) && b.at <= time;
 
-        const missed = data.blocks.filter(started);
-        const upcoming = data.blocks.filter(b => !started(b));
-        // a missed floor block first, then the next to start; a missed
-        // stretch block (often untimed, so "started" all day) only when
-        // nothing else is left, or it would hide the next floor block
+        const missed = data.blocks.filter(over);
+        const current = data.blocks.filter(on);
+        const upcoming = data.blocks.filter(b => !over(b) && !on(b));
+        // a missed floor block first, then the one on now (floor first),
+        // then the next to start; a missed stretch block (often untimed, so
+        // "missed" all day) only when nothing else is left, or it would
+        // hide the next floor block
         const next = missed.find(b => b.floor) ??
+            current.find(b => b.floor) ?? current[0] ??
             upcoming.reduce((a, b) => (a && a.at <= b.at ? a : b), null) ??
             missed[0];
 
@@ -102,7 +110,7 @@ export class HelmSource {
         const rows = data.blocks.map(b => ({
             at: b.at, project: b.project, tier: b.tier ?? '',
             task: `${b.label ?? b.task ?? ''}`,
-            kind: !b.floor ? 'dim' : started(b) ? 'hot' : '',
+            kind: !b.floor ? 'dim' : over(b) ? 'hot' : '',
         }));
         return {label, hot, header, rows};
     }
